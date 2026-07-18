@@ -1,0 +1,1917 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; worker-src blob:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>SplitSend — ブラウザだけでファイルを分割・復元</title>
+  <meta name="description" content="任意形式の大きなファイルを指定サイズに分割し、Web上で完全復元するローカル処理ツールです。">
+  <style>
+:root {
+  color-scheme: light dark;
+  --bg: #f5f7fb;
+  --surface: #ffffff;
+  --surface-subtle: #f8fafc;
+  --text: #18212f;
+  --muted: #667085;
+  --border: #d8dee9;
+  --border-strong: #b7c0ce;
+  --accent: #3157d5;
+  --accent-hover: #2446b7;
+  --accent-soft: #eaf0ff;
+  --accent-button-text: #ffffff;
+  --success: #177245;
+  --success-soft: #e9f8f0;
+  --warning: #8a5700;
+  --warning-soft: #fff4d6;
+  --danger: #b42318;
+  --danger-soft: #ffedeb;
+  --shadow: 0 14px 40px rgba(24, 33, 47, 0.08);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Yu Gothic UI", "Yu Gothic", Meiryo, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f141d;
+    --surface: #171e29;
+    --surface-subtle: #111822;
+    --text: #eef2f7;
+    --muted: #a5b0c0;
+    --border: #303a49;
+    --border-strong: #465266;
+    --accent: #8aa4ff;
+    --accent-hover: #a5b8ff;
+    --accent-soft: #202e55;
+    --accent-button-text: #0b1020;
+    --success: #67d69b;
+    --success-soft: #153b2a;
+    --warning: #f0bd61;
+    --warning-soft: #42300f;
+    --danger: #ff8f86;
+    --danger-soft: #4a201e;
+    --shadow: 0 18px 50px rgba(0, 0, 0, 0.25);
+  }
+}
+
+* { box-sizing: border-box; }
+html { min-width: 320px; scroll-behavior: smooth; }
+body { margin: 0; background: var(--bg); color: var(--text); line-height: 1.65; }
+button, input, select { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: 0.48; }
+code, pre { font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace; }
+code { overflow-wrap: anywhere; }
+
+.shell { width: min(920px, calc(100% - 32px)); margin-inline: auto; }
+.site-header { padding: 44px 0 34px; background: linear-gradient(145deg, var(--surface), var(--accent-soft)); border-bottom: 1px solid var(--border); }
+.header-inner { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; }
+.eyebrow, .step-label { margin: 0 0 4px; color: var(--accent); font-size: 0.76rem; font-weight: 800; letter-spacing: 0.12em; }
+h1 { margin: 0; font-size: clamp(2.15rem, 6vw, 3.6rem); line-height: 1; letter-spacing: -0.045em; }
+.lead { margin: 14px 0 0; color: var(--muted); font-size: 1.05rem; }
+.privacy-badge { display: inline-flex; align-items: center; gap: 9px; flex: 0 0 auto; padding: 9px 13px; border: 1px solid var(--border); border-radius: 999px; background: var(--surface); font-size: 0.88rem; font-weight: 700; box-shadow: var(--shadow); }
+.privacy-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 4px var(--success-soft); }
+
+main.shell { padding-block: 28px 56px; }
+.notice { display: flex; align-items: flex-start; gap: 8px 14px; flex-wrap: wrap; margin-bottom: 18px; padding: 15px 18px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface); }
+.notice span { color: var(--muted); }
+.privacy-notice { border-color: color-mix(in srgb, var(--success) 35%, var(--border)); background: var(--success-soft); }
+.warning-notice, .security-notice { border-color: color-mix(in srgb, var(--warning) 40%, var(--border)); background: var(--warning-soft); }
+.security-notice { margin-top: 22px; margin-bottom: 0; }
+
+.tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 26px 0 14px; padding: 6px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface-subtle); }
+.tab { border: 0; border-radius: 11px; padding: 12px 16px; color: var(--muted); background: transparent; font-weight: 800; }
+.tab[aria-selected="true"] { color: var(--accent); background: var(--surface); box-shadow: 0 3px 12px rgba(0, 0, 0, 0.08); }
+
+.panel { padding: clamp(22px, 5vw, 42px); border: 1px solid var(--border); border-radius: 22px; background: var(--surface); box-shadow: var(--shadow); }
+.section-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 28px; margin-bottom: 26px; }
+.section-heading h2 { margin: 0; font-size: clamp(1.45rem, 4vw, 2rem); line-height: 1.25; }
+.section-heading > p { max-width: 440px; margin: 2px 0 0; color: var(--muted); }
+
+.drop-zone { display: grid; place-items: center; gap: 6px; min-height: 190px; padding: 28px; border: 2px dashed var(--border-strong); border-radius: 18px; background: var(--surface-subtle); text-align: center; transition: 150ms ease; }
+.drop-zone:hover, .drop-zone:focus-visible, .drop-zone.dragging { border-color: var(--accent); background: var(--accent-soft); outline: none; transform: translateY(-1px); }
+.drop-zone > span:last-child { color: var(--muted); }
+.drop-icon { display: grid; place-items: center; width: 52px; height: 52px; margin-bottom: 5px; border-radius: 15px; color: var(--accent); background: var(--accent-soft); font-size: 2rem; line-height: 1; }
+.drop-icon.restore { font-size: 1.65rem; }
+
+.file-card { display: flex; align-items: center; gap: 15px; margin-top: 18px; padding: 15px; border: 1px solid var(--border); border-radius: 15px; background: var(--surface-subtle); }
+.file-icon { display: grid; place-items: center; width: 50px; height: 50px; flex: 0 0 auto; border-radius: 12px; color: var(--accent); background: var(--accent-soft); font-size: 0.68rem; font-weight: 900; letter-spacing: 0.08em; }
+.file-details { display: grid; min-width: 0; }
+.file-details strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.muted { color: var(--muted); font-size: 0.9rem; }
+
+.control-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 22px; }
+.field { display: grid; gap: 8px; font-weight: 700; }
+.field > span { font-size: 0.9rem; }
+select, input[type="number"] { width: 100%; min-width: 0; min-height: 46px; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: 11px; color: var(--text); background: var(--surface); }
+select:focus-visible, input:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 28%, transparent); border-color: var(--accent); }
+.inline-controls { display: grid; grid-template-columns: 1fr 96px; gap: 8px; }
+
+.summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 18px; }
+.summary-item { display: grid; gap: 4px; padding: 14px; border: 1px solid var(--border); border-radius: 13px; background: var(--surface-subtle); }
+.summary-item span { color: var(--muted); font-size: 0.82rem; }
+.summary-item strong { font-size: 1.05rem; }
+
+.action-row { display: flex; gap: 10px; margin-top: 20px; }
+.primary-button, .secondary-button { min-height: 48px; padding: 11px 18px; border-radius: 12px; font-weight: 800; }
+.primary-button { flex: 1; border: 1px solid var(--accent); color: var(--accent-button-text); background: var(--accent); }
+.primary-button:hover:not(:disabled) { background: var(--accent-hover); }
+.secondary-button { border: 1px solid var(--border-strong); color: var(--text); background: var(--surface); }
+.secondary-button.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 55%, var(--border)); }
+.text-button { padding: 4px 0; border: 0; color: var(--accent); background: transparent; font-weight: 750; }
+
+.message { margin-top: 16px; padding: 13px 15px; border: 1px solid var(--border); border-radius: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.message.info { color: var(--text); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 35%, var(--border)); }
+.message.success { color: var(--success); background: var(--success-soft); border-color: color-mix(in srgb, var(--success) 42%, var(--border)); }
+.message.warning { color: var(--warning); background: var(--warning-soft); border-color: color-mix(in srgb, var(--warning) 42%, var(--border)); }
+.message.error { color: var(--danger); background: var(--danger-soft); border-color: color-mix(in srgb, var(--danger) 42%, var(--border)); }
+.result-message { font-weight: 650; }
+
+.progress-panel { margin-top: 18px; padding: 16px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface-subtle); }
+.progress-header, .progress-meta { display: flex; justify-content: space-between; gap: 12px; }
+.progress-header { margin-bottom: 10px; }
+.progress-meta { margin-top: 8px; color: var(--muted); font-size: 0.84rem; }
+.progress-meta span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; }
+.progress-track { height: 11px; overflow: hidden; border-radius: 999px; background: var(--border); }
+.progress-bar { width: 0; height: 100%; border-radius: inherit; background: var(--accent); transition: width 100ms linear; }
+
+.details-box { margin-top: 22px; border-top: 1px solid var(--border); padding-top: 18px; }
+.details-box summary { cursor: pointer; font-weight: 800; }
+.details-box p { color: var(--muted); }
+pre { overflow-x: auto; padding: 15px; border-radius: 12px; background: var(--surface-subtle); border: 1px solid var(--border); font-size: 0.86rem; line-height: 1.55; }
+
+.subheading-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 24px 0 10px; }
+.subheading-row h3 { margin: 0; font-size: 1.05rem; }
+.package-list { display: grid; gap: 10px; }
+.package-card { display: flex; align-items: flex-start; gap: 12px; padding: 14px; border: 1px solid var(--border); border-radius: 13px; background: var(--surface-subtle); cursor: pointer; }
+.package-card:has(input:checked) { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 16%, transparent); }
+.package-card.invalid { border-color: color-mix(in srgb, var(--danger) 38%, var(--border)); }
+.package-card input { margin-top: 5px; }
+.package-card-body { display: grid; min-width: 0; gap: 3px; }
+.package-card-body strong { overflow-wrap: anywhere; }
+.package-status { margin-top: 4px; white-space: pre-wrap; font-size: 0.88rem; }
+.package-card.ready .package-status { color: var(--success); }
+.package-card.invalid .package-status { color: var(--danger); }
+
+.site-footer { border-top: 1px solid var(--border); background: var(--surface); }
+.footer-inner { display: flex; justify-content: space-between; gap: 16px; padding-block: 20px; color: var(--muted); font-size: 0.84rem; }
+.visually-hidden { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+[hidden] { display: none !important; }
+
+@media (max-width: 680px) {
+  .shell { width: min(100% - 20px, 920px); }
+  .site-header { padding-top: 30px; }
+  .header-inner, .section-heading { display: grid; }
+  .privacy-badge { justify-self: start; }
+  .panel { padding: 21px 16px; border-radius: 18px; }
+  .control-grid, .summary-grid { grid-template-columns: 1fr; }
+  .drop-zone { min-height: 165px; padding: 22px 14px; }
+  .action-row { flex-direction: column; }
+  .primary-button, .secondary-button { width: 100%; }
+  .progress-meta { display: grid; }
+  .progress-meta span:last-child { text-align: left; }
+  .footer-inner { display: grid; }
+}
+
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="shell header-inner">
+      <div>
+        <p class="eyebrow">LOCAL FILE TOOL</p>
+        <h1>SplitSend</h1>
+        <p class="lead">大きなファイルを、送信できるサイズへ安全に分割・復元します。</p>
+      </div>
+      <div class="privacy-badge" aria-label="プライバシー情報">
+        <span class="privacy-dot" aria-hidden="true"></span>
+        外部送信なし
+      </div>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="notice privacy-notice" aria-label="重要な説明">
+      <strong>ファイルはこのブラウザ内だけで処理されます。</strong>
+      <span>サーバーへのアップロード、アナリティクス、広告、外部通信はありません。</span>
+    </section>
+
+    <section id="support-banner" class="notice warning-notice" hidden aria-live="polite"></section>
+
+    <nav class="tabs" aria-label="機能の切り替え">
+      <button id="tab-split" class="tab" type="button" role="tab" aria-controls="panel-split">分割</button>
+      <button id="tab-restore" class="tab" type="button" role="tab" aria-controls="panel-restore">復元</button>
+    </nav>
+
+    <section id="panel-split" class="panel" role="tabpanel" aria-labelledby="tab-split">
+      <div class="section-heading">
+        <div>
+          <p class="step-label">STEP 1</p>
+          <h2>ファイルを分割する</h2>
+        </div>
+        <p>任意形式の単一ファイルに対応します。内容は変更せず、バイト単位で分割します。</p>
+      </div>
+
+      <input id="split-input" class="visually-hidden" type="file">
+      <div id="split-drop" class="drop-zone" role="button" tabindex="0" aria-label="分割するファイルを選択">
+        <span class="drop-icon" aria-hidden="true">＋</span>
+        <strong>ファイルをここへドロップ</strong>
+        <span>またはクリックして選択</span>
+      </div>
+
+      <article id="split-file-card" class="file-card" hidden>
+        <div class="file-icon" aria-hidden="true">FILE</div>
+        <div class="file-details">
+          <strong id="split-file-name"></strong>
+          <span id="split-file-size" class="muted"></span>
+          <span id="split-file-type" class="muted"></span>
+        </div>
+      </article>
+
+      <div class="control-grid">
+        <label class="field">
+          <span>1パーツの最大サイズ</span>
+          <select id="split-preset"></select>
+        </label>
+
+        <div id="custom-size-wrap" class="field" hidden>
+          <span>カスタムサイズ</span>
+          <div class="inline-controls">
+            <input id="custom-size" type="number" min="0.001" step="0.001" value="9.5" inputmode="decimal" aria-label="カスタム分割サイズ">
+            <select id="custom-unit" aria-label="サイズ単位">
+              <option value="MB">MB</option>
+              <option value="MiB">MiB</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <section id="split-plan" class="summary-grid" hidden aria-label="分割予定">
+        <div class="summary-item">
+          <span>最大パーツサイズ</span>
+          <strong id="plan-part-size"></strong>
+        </div>
+        <div class="summary-item">
+          <span>生成パーツ数</span>
+          <strong id="plan-part-count"></strong>
+        </div>
+        <div class="summary-item">
+          <span>最後のパーツ</span>
+          <strong id="plan-last-size"></strong>
+        </div>
+      </section>
+
+      <div id="split-message" class="message info" hidden aria-live="polite"></div>
+
+      <div class="action-row">
+        <button id="split-start" class="primary-button" type="button" disabled>保存先を選択して分割</button>
+        <button id="split-cancel" class="secondary-button danger" type="button" hidden>キャンセル</button>
+      </div>
+
+      <section id="split-progress" class="progress-panel" hidden aria-live="polite">
+        <div class="progress-header">
+          <strong data-progress-part>準備中</strong>
+          <span data-progress-percent>0%</span>
+        </div>
+        <div class="progress-track" aria-hidden="true"><div data-progress-bar class="progress-bar"></div></div>
+        <div class="progress-meta">
+          <span data-progress-bytes>0 B</span>
+          <span data-progress-name>準備中</span>
+        </div>
+      </section>
+
+      <div id="split-result" class="message success result-message" hidden aria-live="polite"></div>
+
+      <details class="details-box">
+        <summary>生成されるフォルダーについて</summary>
+        <p>選択した親フォルダー内に、<code>SplitSend_ファイル名_ID</code>という専用サブフォルダーを作成します。分割ファイルがダウンロードフォルダーへ散らばることはありません。</p>
+        <pre><code>SplitSend_example_A1B2C3D4/
+├─ example_A1B2C3D4.part001
+├─ example_A1B2C3D4.part002
+├─ example_A1B2C3D4.splitsend.json
+└─ 復元方法.txt</code></pre>
+      </details>
+    </section>
+
+    <section id="panel-restore" class="panel" role="tabpanel" aria-labelledby="tab-restore" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="step-label">STEP 2</p>
+          <h2>元ファイルへ復元する</h2>
+        </div>
+        <p>すべてのpartファイルとsplitsend.jsonを選択すると、不足と破損を検証しながら復元します。</p>
+      </div>
+
+      <input id="restore-input" class="visually-hidden" type="file" multiple>
+      <div id="restore-drop" class="drop-zone" role="button" tabindex="0" aria-label="復元する分割ファイル一式を選択">
+        <span class="drop-icon restore" aria-hidden="true">↺</span>
+        <strong>分割ファイル一式をここへドロップ</strong>
+        <span>.partファイルと.splitsend.jsonをまとめて選択</span>
+      </div>
+
+      <section id="restore-summary" hidden>
+        <div class="subheading-row">
+          <h3>検出したパッケージ</h3>
+          <button id="restore-clear" class="text-button" type="button">選択をクリア</button>
+        </div>
+        <div id="restore-packages" class="package-list"></div>
+      </section>
+
+      <div id="restore-message" class="message info" hidden aria-live="polite"></div>
+
+      <div class="action-row">
+        <button id="restore-start" class="primary-button" type="button" disabled>復元先を選択して実行</button>
+        <button id="restore-cancel" class="secondary-button danger" type="button" hidden>キャンセル</button>
+      </div>
+
+      <section id="restore-progress" class="progress-panel" hidden aria-live="polite">
+        <div class="progress-header">
+          <strong data-progress-part>準備中</strong>
+          <span data-progress-percent>0%</span>
+        </div>
+        <div class="progress-track" aria-hidden="true"><div data-progress-bar class="progress-bar"></div></div>
+        <div class="progress-meta">
+          <span data-progress-bytes>0 B</span>
+          <span data-progress-name>準備中</span>
+        </div>
+      </section>
+
+      <div id="restore-result" class="message success result-message" hidden aria-live="polite"></div>
+
+      <details class="details-box">
+        <summary>復元時の安全確認</summary>
+        <p>各パーツのサイズとSHA-256、さらに復元後のファイル全体のSHA-256を確認します。不一致がある場合は保存を確定せず、どのパーツに問題があるか表示します。</p>
+      </details>
+    </section>
+
+    <section class="notice security-notice">
+      <strong>分割は暗号化ではありません。</strong>
+      <span>すべてのパーツを持つ人は元ファイルを復元できます。機密ファイルは別途暗号化してください。</span>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="shell footer-inner">
+      <span>SplitSend v1.0.0 Standalone</span>
+      <span>静的Webアプリ・外部通信なし</span>
+    </div>
+  </footer>
+  <script>
+'use strict';
+// ===== constants.js =====
+const APP_NAME = 'SplitSend';
+const APP_VERSION = '1.0.0';
+const FORMAT_NAME = 'splitsend';
+const FORMAT_VERSION = 1;
+const HASH_ALGORITHM = 'SHA-256';
+const DEFAULT_PART_SIZE = 9_500_000;
+const DEFAULT_CHUNK_SIZE = 4 * 1024 * 1024;
+const MAX_MANIFEST_BYTES = 5 * 1024 * 1024;
+const MAX_PART_COUNT = 10_000;
+const PACKAGE_ID_LENGTH = 8;
+
+const SIZE_PRESETS = Object.freeze([
+  { value: 9_500_000, label: 'Discord向け 9.5 MB' },
+  { value: 25_000_000, label: '25 MB' },
+  { value: 49_000_000, label: '49 MB' },
+  { value: 95_000_000, label: '95 MB' },
+]);
+
+// ===== errors.js =====
+class SplitSendError extends Error {
+  constructor(message, code = 'SPLITSEND_ERROR', details = undefined) {
+    super(message);
+    this.name = 'SplitSendError';
+    this.code = code;
+    this.details = details;
+  }
+}
+
+class CancelledError extends SplitSendError {
+  constructor(message = '処理をキャンセルしました。') {
+    super(message, 'CANCELLED');
+    this.name = 'CancelledError';
+  }
+}
+
+class IntegrityError extends SplitSendError {
+  constructor(message, details = undefined) {
+    super(message, 'INTEGRITY_ERROR', details);
+    this.name = 'IntegrityError';
+  }
+}
+
+// ===== naming.js =====
+const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i;
+const UNSAFE_FILENAME_CHARS = /[<>:"/\\|?*\u0000-\u001f]/g;
+const PATH_SEPARATOR_OR_CONTROL = /[/\\\u0000-\u001f]/;
+
+function splitExtension(filename) {
+  const name = String(filename ?? '');
+  const lastDot = name.lastIndexOf('.');
+  if (lastDot <= 0 || lastDot === name.length - 1) {
+    return { stem: name, extension: '' };
+  }
+  return { stem: name.slice(0, lastDot), extension: name.slice(lastDot) };
+}
+
+function sanitizeFilename(filename, { fallback = 'file', maxLength = 180 } = {}) {
+  let safe = String(filename ?? '').normalize('NFC').replace(UNSAFE_FILENAME_CHARS, '_');
+  safe = safe.replace(/[. ]+$/g, '').trim();
+  if (!safe || safe === '.' || safe === '..') safe = fallback;
+  if (WINDOWS_RESERVED.test(safe)) safe = `_${safe}`;
+
+  if (safe.length > maxLength) {
+    const { stem, extension } = splitExtension(safe);
+    const allowedStemLength = Math.max(1, maxLength - extension.length);
+    safe = `${stem.slice(0, allowedStemLength)}${extension}`;
+  }
+  return safe;
+}
+
+function sanitizeStem(filename, { fallback = 'file', maxLength = 90 } = {}) {
+  const { stem } = splitExtension(sanitizeFilename(filename, { fallback, maxLength: maxLength + 20 }));
+  return sanitizeFilename(stem, { fallback, maxLength });
+}
+
+function isSafeBasename(name) {
+  if (typeof name !== 'string' || name.length === 0 || name.length > 255) return false;
+  if (name === '.' || name === '..') return false;
+  if (PATH_SEPARATOR_OR_CONTROL.test(name)) return false;
+  if (/[. ]$/.test(name)) return false;
+  return true;
+}
+
+function createPackageId(length = PACKAGE_ID_LENGTH) {
+  if (!globalThis.crypto?.getRandomValues) {
+    throw new Error('安全な乱数生成機能を利用できません。');
+  }
+  const byteCount = Math.ceil(length / 2);
+  const bytes = new Uint8Array(byteCount);
+  globalThis.crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0'))
+    .join('')
+    .slice(0, length)
+    .toUpperCase();
+}
+
+function partNumberWidth(partCount) {
+  return Math.max(3, String(partCount).length);
+}
+
+function createPackageNames(originalName, packageId, partCount) {
+  const stem = sanitizeStem(originalName);
+  const prefix = sanitizeFilename(`${stem}_${packageId}`, { maxLength: 120 });
+  const width = partNumberWidth(partCount);
+  return {
+    stem,
+    prefix,
+    folderName: sanitizeFilename(`SplitSend_${prefix}`, { maxLength: 150 }),
+    manifestName: `${prefix}.splitsend.json`,
+    instructionsName: '復元方法.txt',
+    partName(index) {
+      return `${prefix}.part${String(index).padStart(width, '0')}`;
+    },
+  };
+}
+
+// ===== utils.js =====
+function formatBytes(bytes, decimals = 2) {
+  if (!Number.isFinite(bytes)) return '—';
+  if (bytes === 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+  const index = Math.min(Math.floor(Math.log(Math.abs(bytes)) / Math.log(1000)), units.length - 1);
+  const value = bytes / (1000 ** index);
+  return `${value.toFixed(index === 0 ? 0 : decimals)} ${units[index]}`;
+}
+
+function formatPercent(processed, total) {
+  if (total <= 0) return 100;
+  return Math.min(100, Math.max(0, (processed / total) * 100));
+}
+
+function calculatePartCount(fileSize, partSize) {
+  if (!Number.isSafeInteger(fileSize) || fileSize < 0) {
+    throw new RangeError('ファイルサイズが不正です。');
+  }
+  if (!Number.isSafeInteger(partSize) || partSize <= 0) {
+    throw new RangeError('分割サイズは1バイト以上の整数にしてください。');
+  }
+  return Math.max(1, Math.ceil(fileSize / partSize));
+}
+
+function assertNotCancelled(shouldCancel) {
+  if (shouldCancel?.()) throw new CancelledError();
+}
+
+function nextTask() {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+function createProgressReporter(callback, minIntervalMs = 80) {
+  let lastTime = 0;
+  let lastProcessed = -1;
+  return (progress, force = false) => {
+    if (!callback) return;
+    const now = Date.now();
+    if (force || progress.processedBytes === progress.totalBytes || now - lastTime >= minIntervalMs) {
+      if (progress.processedBytes !== lastProcessed || force) {
+        callback(progress);
+        lastProcessed = progress.processedBytes;
+        lastTime = now;
+      }
+    }
+  };
+}
+
+function safeJsonParse(text) {
+  try {
+    return { value: JSON.parse(text), error: null };
+  } catch (error) {
+    return { value: null, error };
+  }
+}
+
+// ===== sha256.js =====
+const K = new Uint32Array([
+  0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
+  0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+  0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+  0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+  0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc,
+  0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+  0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
+  0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+  0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13,
+  0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+  0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3,
+  0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+  0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5,
+  0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+  0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208,
+  0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+]);
+
+function rotr(value, bits) {
+  return (value >>> bits) | (value << (32 - bits));
+}
+
+function toBytes(input) {
+  if (input instanceof Uint8Array) return input;
+  if (input instanceof ArrayBuffer) return new Uint8Array(input);
+  if (ArrayBuffer.isView(input)) {
+    return new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
+  }
+  throw new TypeError('SHA-256 input must be an ArrayBuffer or typed array.');
+}
+
+class Sha256 {
+  constructor() {
+    this.state = new Uint32Array([
+      0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+      0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
+    ]);
+    this.buffer = new Uint8Array(64);
+    this.bufferLength = 0;
+    this.bytesHashed = 0;
+    this.finished = false;
+    this.words = new Uint32Array(64);
+  }
+
+  update(input) {
+    if (this.finished) throw new Error('SHA-256 has already been finalized.');
+    const data = toBytes(input);
+    if (data.byteLength === 0) return this;
+
+    this.bytesHashed += data.byteLength;
+    if (!Number.isSafeInteger(this.bytesHashed)) {
+      throw new RangeError('Input is too large for safe JavaScript integer accounting.');
+    }
+
+    let position = 0;
+
+    if (this.bufferLength > 0) {
+      const take = Math.min(64 - this.bufferLength, data.byteLength);
+      this.buffer.set(data.subarray(0, take), this.bufferLength);
+      this.bufferLength += take;
+      position += take;
+      if (this.bufferLength === 64) {
+        this.#processBlock(this.buffer, 0);
+        this.bufferLength = 0;
+      }
+    }
+
+    while (position + 64 <= data.byteLength) {
+      this.#processBlock(data, position);
+      position += 64;
+    }
+
+    if (position < data.byteLength) {
+      this.buffer.set(data.subarray(position), 0);
+      this.bufferLength = data.byteLength - position;
+    }
+
+    return this;
+  }
+
+  digest() {
+    if (!this.finished) this.#finish();
+    const output = new Uint8Array(32);
+    const view = new DataView(output.buffer);
+    for (let i = 0; i < 8; i += 1) {
+      view.setUint32(i * 4, this.state[i], false);
+    }
+    return output;
+  }
+
+  hex() {
+    return Array.from(this.digest(), (byte) => byte.toString(16).padStart(2, '0')).join('');
+  }
+
+  #finish() {
+    const bytesHashed = this.bytesHashed;
+    let position = this.bufferLength;
+    this.buffer[position] = 0x80;
+    position += 1;
+
+    if (position > 56) {
+      this.buffer.fill(0, position, 64);
+      this.#processBlock(this.buffer, 0);
+      this.buffer.fill(0, 0, 56);
+    } else {
+      this.buffer.fill(0, position, 56);
+    }
+
+    const bitLengthHigh = Math.floor(bytesHashed / 0x20000000);
+    const bitLengthLow = (bytesHashed << 3) >>> 0;
+    const view = new DataView(this.buffer.buffer);
+    view.setUint32(56, bitLengthHigh >>> 0, false);
+    view.setUint32(60, bitLengthLow, false);
+    this.#processBlock(this.buffer, 0);
+
+    this.finished = true;
+    this.bufferLength = 0;
+  }
+
+  #processBlock(chunk, offset) {
+    const w = this.words;
+    for (let i = 0; i < 16; i += 1) {
+      const j = offset + i * 4;
+      w[i] = (
+        (chunk[j] << 24)
+        | (chunk[j + 1] << 16)
+        | (chunk[j + 2] << 8)
+        | chunk[j + 3]
+      ) >>> 0;
+    }
+
+    for (let i = 16; i < 64; i += 1) {
+      const x = w[i - 15];
+      const y = w[i - 2];
+      const s0 = rotr(x, 7) ^ rotr(x, 18) ^ (x >>> 3);
+      const s1 = rotr(y, 17) ^ rotr(y, 19) ^ (y >>> 10);
+      w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
+    }
+
+    let a = this.state[0];
+    let b = this.state[1];
+    let c = this.state[2];
+    let d = this.state[3];
+    let e = this.state[4];
+    let f = this.state[5];
+    let g = this.state[6];
+    let h = this.state[7];
+
+    for (let i = 0; i < 64; i += 1) {
+      const sum1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
+      const choose = (e & f) ^ (~e & g);
+      const temp1 = (h + sum1 + choose + K[i] + w[i]) >>> 0;
+      const sum0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
+      const majority = (a & b) ^ (a & c) ^ (b & c);
+      const temp2 = (sum0 + majority) >>> 0;
+
+      h = g;
+      g = f;
+      f = e;
+      e = (d + temp1) >>> 0;
+      d = c;
+      c = b;
+      b = a;
+      a = (temp1 + temp2) >>> 0;
+    }
+
+    this.state[0] = (this.state[0] + a) >>> 0;
+    this.state[1] = (this.state[1] + b) >>> 0;
+    this.state[2] = (this.state[2] + c) >>> 0;
+    this.state[3] = (this.state[3] + d) >>> 0;
+    this.state[4] = (this.state[4] + e) >>> 0;
+    this.state[5] = (this.state[5] + f) >>> 0;
+    this.state[6] = (this.state[6] + g) >>> 0;
+    this.state[7] = (this.state[7] + h) >>> 0;
+  }
+}
+
+function sha256Hex(input) {
+  return new Sha256().update(input).hex();
+}
+
+// ===== blob-stream.js =====
+async function* readBlobRange(blob, {
+  start = 0,
+  length = blob.size - start,
+  chunkSize = DEFAULT_CHUNK_SIZE,
+  shouldCancel,
+  yieldEvery = 4,
+} = {}) {
+  if (!(blob instanceof Blob)) throw new TypeError('blob must be a Blob.');
+  if (!Number.isSafeInteger(start) || start < 0 || start > blob.size) throw new RangeError('start is invalid.');
+  if (!Number.isSafeInteger(length) || length < 0 || start + length > blob.size) throw new RangeError('length is invalid.');
+  if (!Number.isSafeInteger(chunkSize) || chunkSize <= 0) throw new RangeError('chunkSize is invalid.');
+
+  const end = start + length;
+  let position = start;
+  let chunkIndex = 0;
+
+  while (position < end) {
+    assertNotCancelled(shouldCancel);
+    const nextPosition = Math.min(end, position + chunkSize);
+    const buffer = await blob.slice(position, nextPosition).arrayBuffer();
+    yield new Uint8Array(buffer);
+    position = nextPosition;
+    chunkIndex += 1;
+    if (yieldEvery > 0 && chunkIndex % yieldEvery === 0) await nextTask();
+  }
+}
+
+// ===== manifest.js =====
+const SHA256_HEX = /^[a-f0-9]{64}$/i;
+const PACKAGE_ID = /^[A-F0-9]{8}$/;
+
+function createManifest({
+  packageId,
+  originalName,
+  originalSize,
+  mimeType = '',
+  lastModified = 0,
+  originalSha256,
+  partSize,
+  parts,
+}) {
+  return {
+    format: FORMAT_NAME,
+    version: FORMAT_VERSION,
+    packageId,
+    createdAt: new Date().toISOString(),
+    createdBy: {
+      application: APP_NAME,
+      version: APP_VERSION,
+    },
+    integrity: {
+      algorithm: HASH_ALGORITHM,
+    },
+    original: {
+      name: originalName,
+      size: originalSize,
+      mimeType: typeof mimeType === 'string' ? mimeType : '',
+      lastModified: Number.isFinite(lastModified) ? lastModified : 0,
+      sha256: originalSha256,
+    },
+    split: {
+      method: 'contiguous-bytes',
+      partSize,
+      partCount: parts.length,
+    },
+    parts,
+  };
+}
+
+function integerInRange(value, minimum, maximum = Number.MAX_SAFE_INTEGER) {
+  return Number.isSafeInteger(value) && value >= minimum && value <= maximum;
+}
+
+function validateManifest(manifest) {
+  const errors = [];
+  const add = (message) => errors.push(message);
+
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
+    return { valid: false, errors: ['マニフェストの最上位はオブジェクトである必要があります。'] };
+  }
+
+  if (manifest.format !== FORMAT_NAME) add(`format は "${FORMAT_NAME}" である必要があります。`);
+  if (manifest.version !== FORMAT_VERSION) add(`対応していない形式バージョンです: ${String(manifest.version)}`);
+  if (!PACKAGE_ID.test(manifest.packageId ?? '')) add('packageId は8桁の16進数である必要があります。');
+  if (manifest.integrity?.algorithm !== HASH_ALGORITHM) add(`integrity.algorithm は ${HASH_ALGORITHM} である必要があります。`);
+
+  const original = manifest.original;
+  if (!original || typeof original !== 'object') {
+    add('original 情報がありません。');
+  } else {
+    if (!isSafeBasename(original.name)) add('original.name が不正です。');
+    if (!integerInRange(original.size, 0)) add('original.size が不正です。');
+    if (!SHA256_HEX.test(original.sha256 ?? '')) add('original.sha256 が不正です。');
+    if (typeof original.mimeType !== 'string') add('original.mimeType が不正です。');
+    if (!Number.isFinite(original.lastModified) || original.lastModified < 0) add('original.lastModified が不正です。');
+  }
+
+  const split = manifest.split;
+  if (!split || typeof split !== 'object') {
+    add('split 情報がありません。');
+  } else {
+    if (split.method !== 'contiguous-bytes') add('対応していない分割方式です。');
+    if (!integerInRange(split.partSize, 1)) add('split.partSize が不正です。');
+    if (!integerInRange(split.partCount, 1, MAX_PART_COUNT)) add(`split.partCount は1〜${MAX_PART_COUNT}の範囲である必要があります。`);
+  }
+
+  if (!Array.isArray(manifest.parts)) {
+    add('parts は配列である必要があります。');
+  } else if (manifest.parts.length > MAX_PART_COUNT) {
+    add(`parts が多すぎます。上限は${MAX_PART_COUNT}個です。`);
+  }
+
+  if (errors.length > 0 || !original || !split || !Array.isArray(manifest.parts)) {
+    return { valid: false, errors };
+  }
+
+  if (manifest.parts.length !== split.partCount) {
+    add('split.partCount と parts の個数が一致しません。');
+  }
+
+  const expectedCount = calculatePartCount(original.size, split.partSize);
+  if (split.partCount !== expectedCount) {
+    add(`partCount が元ファイルサイズと一致しません。期待値: ${expectedCount}`);
+  }
+
+  const names = new Set();
+  let expectedOffset = 0;
+  let totalSize = 0;
+
+  for (let i = 0; i < manifest.parts.length; i += 1) {
+    const part = manifest.parts[i];
+    const expectedIndex = i + 1;
+    if (!part || typeof part !== 'object') {
+      add(`parts[${i}] が不正です。`);
+      continue;
+    }
+    if (part.index !== expectedIndex) add(`parts[${i}].index は ${expectedIndex} である必要があります。`);
+    if (!isSafeBasename(part.name)) add(`parts[${i}].name が不正です。`);
+    if (names.has(part.name)) add(`パーツ名が重複しています: ${part.name}`);
+    names.add(part.name);
+    if (!integerInRange(part.offset, 0)) add(`parts[${i}].offset が不正です。`);
+    if (part.offset !== expectedOffset) add(`parts[${i}].offset が連続していません。`);
+    if (!integerInRange(part.size, 0)) add(`parts[${i}].size が不正です。`);
+    if (!SHA256_HEX.test(part.sha256 ?? '')) add(`parts[${i}].sha256 が不正です。`);
+
+    const isLast = i === manifest.parts.length - 1;
+    if (!isLast && part.size !== split.partSize) {
+      add(`parts[${i}].size は最後のパーツ以外 ${split.partSize} bytes である必要があります。`);
+    }
+    if (isLast && original.size > 0 && (part.size <= 0 || part.size > split.partSize)) {
+      add(`最後のパーツサイズが不正です: ${part.size}`);
+    }
+    if (original.size === 0 && (manifest.parts.length !== 1 || part.size !== 0)) {
+      add('0バイトファイルは0バイトのパーツ1個で表現する必要があります。');
+    }
+
+    expectedOffset += part.size;
+    totalSize += part.size;
+  }
+
+  if (totalSize !== original.size) {
+    add(`パーツ合計サイズと元ファイルサイズが一致しません。合計: ${totalSize}, 元: ${original.size}`);
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+function assertValidManifest(manifest) {
+  const result = validateManifest(manifest);
+  if (!result.valid) {
+    throw new SplitSendError(
+      `復元情報が不正です。\n${result.errors.map((error) => `・${error}`).join('\n')}`,
+      'INVALID_MANIFEST',
+      result.errors,
+    );
+  }
+  return manifest;
+}
+
+function serializeManifest(manifest) {
+  return `${JSON.stringify(manifest, null, 2)}\n`;
+}
+
+// ===== restore-core.js =====
+function normalizePartMap(partFiles) {
+  if (partFiles instanceof Map) return partFiles;
+  const map = new Map();
+  for (const file of partFiles ?? []) {
+    if (map.has(file.name)) {
+      throw new SplitSendError(`同名のパーツが複数あります: ${file.name}`, 'DUPLICATE_PART');
+    }
+    map.set(file.name, file);
+  }
+  return map;
+}
+
+function inspectParts(manifest, partFiles) {
+  assertValidManifest(manifest);
+  const files = normalizePartMap(partFiles);
+  const missing = [];
+  const sizeMismatches = [];
+
+  for (const part of manifest.parts) {
+    const file = files.get(part.name);
+    if (!file) {
+      missing.push(part.name);
+    } else if (file.size !== part.size) {
+      sizeMismatches.push({ name: part.name, expected: part.size, actual: file.size });
+    }
+  }
+
+  return {
+    ready: missing.length === 0 && sizeMismatches.length === 0,
+    missing,
+    sizeMismatches,
+    matchedCount: manifest.parts.length - missing.length,
+    requiredCount: manifest.parts.length,
+  };
+}
+
+async function restoreParts({
+  manifest,
+  partFiles,
+  outputWriter,
+  chunkSize = DEFAULT_CHUNK_SIZE,
+  onProgress,
+  shouldCancel,
+}) {
+  assertValidManifest(manifest);
+  if (!outputWriter || typeof outputWriter.write !== 'function') {
+    throw new TypeError('outputWriter is required.');
+  }
+
+  const files = normalizePartMap(partFiles);
+  const inspection = inspectParts(manifest, files);
+  if (inspection.missing.length > 0) {
+    throw new SplitSendError(
+      `必要なパーツが不足しています。\n${inspection.missing.map((name) => `・${name}`).join('\n')}`,
+      'MISSING_PARTS',
+      inspection.missing,
+    );
+  }
+  if (inspection.sizeMismatches.length > 0) {
+    const lines = inspection.sizeMismatches.map(
+      (item) => `・${item.name}: 期待 ${item.expected} bytes / 実際 ${item.actual} bytes`,
+    );
+    throw new IntegrityError(`パーツのサイズが一致しません。\n${lines.join('\n')}`, inspection.sizeMismatches);
+  }
+
+  const overallHash = new Sha256();
+  let processedBytes = 0;
+  let closed = false;
+  const report = createProgressReporter(onProgress);
+
+  report({
+    phase: 'restore',
+    processedBytes,
+    totalBytes: manifest.original.size,
+    partIndex: 0,
+    partCount: manifest.parts.length,
+    currentName: '',
+  }, true);
+
+  try {
+    for (const part of manifest.parts) {
+      assertNotCancelled(shouldCancel);
+      const file = files.get(part.name);
+      const partHash = new Sha256();
+
+      for await (const bytes of readBlobRange(file, {
+        start: 0,
+        length: file.size,
+        chunkSize,
+        shouldCancel,
+      })) {
+        partHash.update(bytes);
+        overallHash.update(bytes);
+        await outputWriter.write(bytes);
+        processedBytes += bytes.byteLength;
+        report({
+          phase: 'restore',
+          processedBytes,
+          totalBytes: manifest.original.size,
+          partIndex: part.index,
+          partCount: manifest.parts.length,
+          currentName: part.name,
+        });
+      }
+
+      const actualPartHash = partHash.hex();
+      if (actualPartHash.toLowerCase() !== part.sha256.toLowerCase()) {
+        throw new IntegrityError(
+          `${part.name} のSHA-256が一致しません。破損または別ファイルの可能性があります。`,
+          { name: part.name, expected: part.sha256, actual: actualPartHash },
+        );
+      }
+    }
+
+    assertNotCancelled(shouldCancel);
+    if (processedBytes !== manifest.original.size) {
+      throw new IntegrityError(
+        `復元サイズが一致しません。期待 ${manifest.original.size} bytes / 実際 ${processedBytes} bytes`,
+      );
+    }
+
+    const actualOriginalHash = overallHash.hex();
+    if (actualOriginalHash.toLowerCase() !== manifest.original.sha256.toLowerCase()) {
+      throw new IntegrityError(
+        '復元ファイル全体のSHA-256が元ファイルと一致しません。',
+        { expected: manifest.original.sha256, actual: actualOriginalHash },
+      );
+    }
+
+    await outputWriter.close();
+    closed = true;
+    report({
+      phase: 'restore',
+      processedBytes: manifest.original.size,
+      totalBytes: manifest.original.size,
+      partIndex: manifest.parts.length,
+      partCount: manifest.parts.length,
+      currentName: manifest.parts.at(-1)?.name ?? '',
+    }, true);
+
+    return {
+      size: processedBytes,
+      sha256: actualOriginalHash,
+      originalName: manifest.original.name,
+    };
+  } catch (error) {
+    if (!closed) {
+      try { await outputWriter.abort?.(error); } catch { /* Keep original error. */ }
+    }
+    throw error;
+  }
+}
+
+// ===== split-core.js =====
+async function splitBlob({
+  blob,
+  originalName,
+  mimeType = '',
+  lastModified = 0,
+  partSize,
+  packageId = createPackageId(),
+  chunkSize = DEFAULT_CHUNK_SIZE,
+  createWriter,
+  onProgress,
+  shouldCancel,
+}) {
+  if (!(blob instanceof Blob)) throw new TypeError('blob must be a Blob.');
+  if (typeof originalName !== 'string' || originalName.length === 0) {
+    throw new SplitSendError('元ファイル名が不正です。', 'INVALID_FILENAME');
+  }
+  if (typeof createWriter !== 'function') throw new TypeError('createWriter is required.');
+
+  const partCount = calculatePartCount(blob.size, partSize);
+  if (partCount > MAX_PART_COUNT) {
+    throw new SplitSendError(
+      `分割数が多すぎます（${partCount}個）。分割サイズを大きくしてください。`,
+      'TOO_MANY_PARTS',
+    );
+  }
+
+  const names = createPackageNames(originalName, packageId, partCount);
+  const overallHash = new Sha256();
+  const parts = [];
+  let processedBytes = 0;
+  const report = createProgressReporter(onProgress);
+
+  report({
+    phase: 'split',
+    processedBytes,
+    totalBytes: blob.size,
+    partIndex: 0,
+    partCount,
+    currentName: '',
+  }, true);
+
+  for (let index = 1; index <= partCount; index += 1) {
+    assertNotCancelled(shouldCancel);
+    const offset = (index - 1) * partSize;
+    const size = Math.min(partSize, Math.max(0, blob.size - offset));
+    const partName = names.partName(index);
+    const partHash = new Sha256();
+    const writer = await createWriter(partName);
+    let closed = false;
+
+    try {
+      for await (const bytes of readBlobRange(blob, {
+        start: offset,
+        length: size,
+        chunkSize,
+        shouldCancel,
+      })) {
+        partHash.update(bytes);
+        overallHash.update(bytes);
+        await writer.write(bytes);
+        processedBytes += bytes.byteLength;
+        report({
+          phase: 'split',
+          processedBytes,
+          totalBytes: blob.size,
+          partIndex: index,
+          partCount,
+          currentName: partName,
+        });
+      }
+      assertNotCancelled(shouldCancel);
+      await writer.close();
+      closed = true;
+    } catch (error) {
+      if (!closed) {
+        try { await writer.abort?.(error); } catch { /* Keep original error. */ }
+      }
+      throw error;
+    }
+
+    parts.push({
+      index,
+      name: partName,
+      offset,
+      size,
+      sha256: partHash.hex(),
+    });
+  }
+
+  assertNotCancelled(shouldCancel);
+  const manifest = createManifest({
+    packageId,
+    originalName,
+    originalSize: blob.size,
+    mimeType,
+    lastModified,
+    originalSha256: overallHash.hex(),
+    partSize,
+    parts,
+  });
+
+  report({
+    phase: 'split',
+    processedBytes: blob.size,
+    totalBytes: blob.size,
+    partIndex: partCount,
+    partCount,
+    currentName: parts.at(-1)?.name ?? '',
+  }, true);
+
+  return { manifest, names };
+}
+
+// ===== browser-operations.js =====
+function makeWriter(fileHandle) {
+  let streamPromise;
+  const getStream = () => {
+    streamPromise ??= fileHandle.createWritable();
+    return streamPromise;
+  };
+  return {
+    async write(bytes) {
+      const stream = await getStream();
+      await stream.write(bytes);
+    },
+    async close() {
+      const stream = await getStream();
+      await stream.close();
+    },
+    async abort(reason) {
+      if (!streamPromise) return;
+      const stream = await streamPromise;
+      await stream.abort(reason);
+    },
+  };
+}
+
+async function entryExists(directoryHandle, name) {
+  try {
+    await directoryHandle.getDirectoryHandle(name, { create: false });
+    return true;
+  } catch (error) {
+    if (error?.name === 'NotFoundError') {
+      try {
+        await directoryHandle.getFileHandle(name, { create: false });
+        return true;
+      } catch (fileError) {
+        if (fileError?.name === 'NotFoundError') return false;
+        if (fileError?.name === 'TypeMismatchError') return true;
+        throw fileError;
+      }
+    }
+    if (error?.name === 'TypeMismatchError') return true;
+    throw error;
+  }
+}
+
+async function createUniqueDirectory(parentHandle, preferredName) {
+  for (let suffix = 1; suffix <= 9999; suffix += 1) {
+    const candidate = suffix === 1 ? preferredName : `${preferredName}_${suffix}`;
+    if (!(await entryExists(parentHandle, candidate))) {
+      const handle = await parentHandle.getDirectoryHandle(candidate, { create: true });
+      return { handle, name: candidate };
+    }
+  }
+  throw new SplitSendError('出力フォルダー名を確保できませんでした。', 'DIRECTORY_NAME_EXHAUSTED');
+}
+
+async function writeTextFile(directoryHandle, name, content) {
+  const handle = await directoryHandle.getFileHandle(name, { create: true });
+  const writer = makeWriter(handle);
+  try {
+    await writer.write(new TextEncoder().encode(content));
+    await writer.close();
+  } catch (error) {
+    try { await writer.abort(error); } catch { /* Keep original error. */ }
+    throw error;
+  }
+}
+
+function buildRestoreInstructions(manifest, restoreUrl) {
+  return `SplitSendで分割されたファイルです。\r\n\r\n`
+    + `元ファイル: ${manifest.original.name}\r\n`
+    + `元サイズ: ${manifest.original.size} bytes\r\n`
+    + `パーツ数: ${manifest.split.partCount}\r\n`
+    + `パッケージID: ${manifest.packageId}\r\n\r\n`
+    + `復元方法\r\n`
+    + `1. すべての .part ファイルと .splitsend.json を保存します。\r\n`
+    + `2. 次のページをGoogle Chromeで開きます。\r\n`
+    + `${restoreUrl}\r\n`
+    + `3. 「復元」を選び、ファイル一式をまとめてドラッグ＆ドロップします。\r\n`
+    + `4. 復元先を選び、「検証して復元」を実行します。\r\n\r\n`
+    + `注意: 分割は暗号化ではありません。パーツを持つ人は元ファイルを復元できます。\r\n`;
+}
+
+async function splitToDirectory({
+  file,
+  partSize,
+  parentDirectoryHandle,
+  restoreUrl,
+  chunkSize = DEFAULT_CHUNK_SIZE,
+  onProgress,
+  shouldCancel,
+}) {
+  if (!parentDirectoryHandle) throw new TypeError('parentDirectoryHandle is required.');
+  const packageId = createPackageId();
+  const partCount = calculatePartCount(file.size, partSize);
+  const plannedNames = createPackageNames(file.name, packageId, partCount);
+  const packageDirectory = await createUniqueDirectory(parentDirectoryHandle, plannedNames.folderName);
+
+  try {
+    const result = await splitBlob({
+      blob: file,
+      originalName: file.name,
+      mimeType: file.type,
+      lastModified: file.lastModified,
+      partSize,
+      packageId,
+      chunkSize,
+      shouldCancel,
+      onProgress,
+      async createWriter(name) {
+        const handle = await packageDirectory.handle.getFileHandle(name, { create: true });
+        return makeWriter(handle);
+      },
+    });
+
+    if (shouldCancel?.()) throw new CancelledError();
+    await writeTextFile(
+      packageDirectory.handle,
+      result.names.manifestName,
+      serializeManifest(result.manifest),
+    );
+    await writeTextFile(
+      packageDirectory.handle,
+      result.names.instructionsName,
+      buildRestoreInstructions(result.manifest, restoreUrl),
+    );
+
+    return {
+      manifest: result.manifest,
+      folderName: packageDirectory.name,
+      manifestName: result.names.manifestName,
+      instructionsName: result.names.instructionsName,
+    };
+  } catch (error) {
+    try {
+      await parentDirectoryHandle.removeEntry(packageDirectory.name, { recursive: true });
+    } catch (cleanupError) {
+      error.cleanupWarning = `不完全なフォルダー「${packageDirectory.name}」を自動削除できませんでした。手動で削除してください。`;
+      error.cleanupCause = cleanupError;
+    }
+    throw error;
+  }
+}
+
+async function restoreToFile({
+  manifest,
+  partFiles,
+  outputFileHandle,
+  chunkSize = DEFAULT_CHUNK_SIZE,
+  onProgress,
+  shouldCancel,
+}) {
+  if (!outputFileHandle) throw new TypeError('outputFileHandle is required.');
+  const writer = makeWriter(outputFileHandle);
+  return restoreParts({
+    manifest,
+    partFiles,
+    outputWriter: writer,
+    chunkSize,
+    onProgress,
+    shouldCancel,
+  });
+}
+
+function suggestedRestoredFilename(originalName) {
+  return sanitizeFilename(originalName, { fallback: 'restored-file', maxLength: 180 });
+}
+
+// ===== package-discovery.js =====
+function indexFilesByName(files) {
+  const index = new Map();
+  for (const file of files) {
+    const list = index.get(file.name) ?? [];
+    list.push(file);
+    index.set(file.name, list);
+  }
+  return index;
+}
+
+async function discoverPackages(fileList) {
+  const files = Array.from(fileList ?? []);
+  const index = indexFilesByName(files);
+  const manifestFiles = files.filter((file) => file.name.toLowerCase().endsWith('.splitsend.json'));
+  const packages = [];
+
+  for (const manifestFile of manifestFiles) {
+    if (manifestFile.size > MAX_MANIFEST_BYTES) {
+      packages.push({
+        key: manifestFile.name,
+        manifestFile,
+        error: `復元情報ファイルが大きすぎます（上限 ${MAX_MANIFEST_BYTES} bytes）。`,
+      });
+      continue;
+    }
+
+    const text = await manifestFile.text();
+    const parsed = safeJsonParse(text);
+    if (parsed.error) {
+      packages.push({ key: manifestFile.name, manifestFile, error: 'JSONを解析できません。' });
+      continue;
+    }
+
+    const validation = validateManifest(parsed.value);
+    if (!validation.valid) {
+      packages.push({
+        key: manifestFile.name,
+        manifestFile,
+        manifest: parsed.value,
+        error: validation.errors.join('\n'),
+      });
+      continue;
+    }
+
+    const duplicates = [];
+    const partFiles = [];
+    for (const part of parsed.value.parts) {
+      const matches = index.get(part.name) ?? [];
+      if (matches.length > 1) duplicates.push(part.name);
+      if (matches.length >= 1) partFiles.push(matches[0]);
+    }
+
+    let inspection;
+    try {
+      inspection = inspectParts(parsed.value, partFiles);
+    } catch (error) {
+      packages.push({
+        key: `${parsed.value.packageId}:${manifestFile.name}`,
+        manifestFile,
+        manifest: parsed.value,
+        error: error.message,
+      });
+      continue;
+    }
+
+    packages.push({
+      key: `${parsed.value.packageId}:${manifestFile.name}`,
+      manifestFile,
+      manifest: parsed.value,
+      partFiles,
+      duplicates,
+      inspection: {
+        ...inspection,
+        ready: inspection.ready && duplicates.length === 0,
+      },
+    });
+  }
+
+  return {
+    files,
+    manifestCount: manifestFiles.length,
+    packages,
+  };
+}
+
+// ===== inline-worker-bootstrap.js =====
+const SPLITSEND_WORKER_BASE64 = 'J3VzZSBzdHJpY3QnOwovLyA9PT09PSBjb25zdGFudHMuanMgPT09PT0KY29uc3QgQVBQX05BTUUgPSAnU3BsaXRTZW5kJzsKY29uc3QgQVBQX1ZFUlNJT04gPSAnMS4wLjAnOwpjb25zdCBGT1JNQVRfTkFNRSA9ICdzcGxpdHNlbmQnOwpjb25zdCBGT1JNQVRfVkVSU0lPTiA9IDE7CmNvbnN0IEhBU0hfQUxHT1JJVEhNID0gJ1NIQS0yNTYnOwpjb25zdCBERUZBVUxUX1BBUlRfU0laRSA9IDlfNTAwXzAwMDsKY29uc3QgREVGQVVMVF9DSFVOS19TSVpFID0gNCAqIDEwMjQgKiAxMDI0Owpjb25zdCBNQVhfTUFOSUZFU1RfQllURVMgPSA1ICogMTAyNCAqIDEwMjQ7CmNvbnN0IE1BWF9QQVJUX0NPVU5UID0gMTBfMDAwOwpjb25zdCBQQUNLQUdFX0lEX0xFTkdUSCA9IDg7Cgpjb25zdCBTSVpFX1BSRVNFVFMgPSBPYmplY3QuZnJlZXplKFsKICB7IHZhbHVlOiA5XzUwMF8wMDAsIGxhYmVsOiAnRGlzY29yZOWQkeOBkSA5LjUgTUInIH0sCiAgeyB2YWx1ZTogMjVfMDAwXzAwMCwgbGFiZWw6ICcyNSBNQicgfSwKICB7IHZhbHVlOiA0OV8wMDBfMDAwLCBsYWJlbDogJzQ5IE1CJyB9LAogIHsgdmFsdWU6IDk1XzAwMF8wMDAsIGxhYmVsOiAnOTUgTUInIH0sCl0pOwoKLy8gPT09PT0gZXJyb3JzLmpzID09PT09CmNsYXNzIFNwbGl0U2VuZEVycm9yIGV4dGVuZHMgRXJyb3IgewogIGNvbnN0cnVjdG9yKG1lc3NhZ2UsIGNvZGUgPSAnU1BMSVRTRU5EX0VSUk9SJywgZGV0YWlscyA9IHVuZGVmaW5lZCkgewogICAgc3VwZXIobWVzc2FnZSk7CiAgICB0aGlzLm5hbWUgPSAnU3BsaXRTZW5kRXJyb3InOwogICAgdGhpcy5jb2RlID0gY29kZTsKICAgIHRoaXMuZGV0YWlscyA9IGRldGFpbHM7CiAgfQp9CgpjbGFzcyBDYW5jZWxsZWRFcnJvciBleHRlbmRzIFNwbGl0U2VuZEVycm9yIHsKICBjb25zdHJ1Y3RvcihtZXNzYWdlID0gJ+WHpueQhuOCkuOCreODo+ODs+OCu+ODq+OBl+OBvuOBl+OBn+OAgicpIHsKICAgIHN1cGVyKG1lc3NhZ2UsICdDQU5DRUxMRUQnKTsKICAgIHRoaXMubmFtZSA9ICdDYW5jZWxsZWRFcnJvcic7CiAgfQp9CgpjbGFzcyBJbnRlZ3JpdHlFcnJvciBleHRlbmRzIFNwbGl0U2VuZEVycm9yIHsKICBjb25zdHJ1Y3RvcihtZXNzYWdlLCBkZXRhaWxzID0gdW5kZWZpbmVkKSB7CiAgICBzdXBlcihtZXNzYWdlLCAnSU5URUdSSVRZX0VSUk9SJywgZGV0YWlscyk7CiAgICB0aGlzLm5hbWUgPSAnSW50ZWdyaXR5RXJyb3InOwogIH0KfQoKLy8gPT09PT0gbmFtaW5nLmpzID09PT09CmNvbnN0IFdJTkRPV1NfUkVTRVJWRUQgPSAvXihjb258cHJufGF1eHxudWx8Y29tWzEtOV18bHB0WzEtOV0pKD86XC58JCkvaTsKY29uc3QgVU5TQUZFX0ZJTEVOQU1FX0NIQVJTID0gL1s8PjoiL1xcfD8qXHUwMDAwLVx1MDAxZl0vZzsKY29uc3QgUEFUSF9TRVBBUkFUT1JfT1JfQ09OVFJPTCA9IC9bL1xcXHUwMDAwLVx1MDAxZl0vOwoKZnVuY3Rpb24gc3BsaXRFeHRlbnNpb24oZmlsZW5hbWUpIHsKICBjb25zdCBuYW1lID0gU3RyaW5nKGZpbGVuYW1lID8/ICcnKTsKICBjb25zdCBsYXN0RG90ID0gbmFtZS5sYXN0SW5kZXhPZignLicpOwogIGlmIChsYXN0RG90IDw9IDAgfHwgbGFzdERvdCA9PT0gbmFtZS5sZW5ndGggLSAxKSB7CiAgICByZXR1cm4geyBzdGVtOiBuYW1lLCBleHRlbnNpb246ICcnIH07CiAgfQogIHJldHVybiB7IHN0ZW06IG5hbWUuc2xpY2UoMCwgbGFzdERvdCksIGV4dGVuc2lvbjogbmFtZS5zbGljZShsYXN0RG90KSB9Owp9CgpmdW5jdGlvbiBzYW5pdGl6ZUZpbGVuYW1lKGZpbGVuYW1lLCB7IGZhbGxiYWNrID0gJ2ZpbGUnLCBtYXhMZW5ndGggPSAxODAgfSA9IHt9KSB7CiAgbGV0IHNhZmUgPSBTdHJpbmcoZmlsZW5hbWUgPz8gJycpLm5vcm1hbGl6ZSgnTkZDJykucmVwbGFjZShVTlNBRkVfRklMRU5BTUVfQ0hBUlMsICdfJyk7CiAgc2FmZSA9IHNhZmUucmVwbGFjZSgvWy4gXSskL2csICcnKS50cmltKCk7CiAgaWYgKCFzYWZlIHx8IHNhZmUgPT09ICcuJyB8fCBzYWZlID09PSAnLi4nKSBzYWZlID0gZmFsbGJhY2s7CiAgaWYgKFdJTkRPV1NfUkVTRVJWRUQudGVzdChzYWZlKSkgc2FmZSA9IGBfJHtzYWZlfWA7CgogIGlmIChzYWZlLmxlbmd0aCA+IG1heExlbmd0aCkgewogICAgY29uc3QgeyBzdGVtLCBleHRlbnNpb24gfSA9IHNwbGl0RXh0ZW5zaW9uKHNhZmUpOwogICAgY29uc3QgYWxsb3dlZFN0ZW1MZW5ndGggPSBNYXRoLm1heCgxLCBtYXhMZW5ndGggLSBleHRlbnNpb24ubGVuZ3RoKTsKICAgIHNhZmUgPSBgJHtzdGVtLnNsaWNlKDAsIGFsbG93ZWRTdGVtTGVuZ3RoKX0ke2V4dGVuc2lvbn1gOwogIH0KICByZXR1cm4gc2FmZTsKfQoKZnVuY3Rpb24gc2FuaXRpemVTdGVtKGZpbGVuYW1lLCB7IGZhbGxiYWNrID0gJ2ZpbGUnLCBtYXhMZW5ndGggPSA5MCB9ID0ge30pIHsKICBjb25zdCB7IHN0ZW0gfSA9IHNwbGl0RXh0ZW5zaW9uKHNhbml0aXplRmlsZW5hbWUoZmlsZW5hbWUsIHsgZmFsbGJhY2ssIG1heExlbmd0aDogbWF4TGVuZ3RoICsgMjAgfSkpOwogIHJldHVybiBzYW5pdGl6ZUZpbGVuYW1lKHN0ZW0sIHsgZmFsbGJhY2ssIG1heExlbmd0aCB9KTsKfQoKZnVuY3Rpb24gaXNTYWZlQmFzZW5hbWUobmFtZSkgewogIGlmICh0eXBlb2YgbmFtZSAhPT0gJ3N0cmluZycgfHwgbmFtZS5sZW5ndGggPT09IDAgfHwgbmFtZS5sZW5ndGggPiAyNTUpIHJldHVybiBmYWxzZTsKICBpZiAobmFtZSA9PT0gJy4nIHx8IG5hbWUgPT09ICcuLicpIHJldHVybiBmYWxzZTsKICBpZiAoUEFUSF9TRVBBUkFUT1JfT1JfQ09OVFJPTC50ZXN0KG5hbWUpKSByZXR1cm4gZmFsc2U7CiAgaWYgKC9bLiBdJC8udGVzdChuYW1lKSkgcmV0dXJuIGZhbHNlOwogIHJldHVybiB0cnVlOwp9CgpmdW5jdGlvbiBjcmVhdGVQYWNrYWdlSWQobGVuZ3RoID0gUEFDS0FHRV9JRF9MRU5HVEgpIHsKICBpZiAoIWdsb2JhbFRoaXMuY3J5cHRvPy5nZXRSYW5kb21WYWx1ZXMpIHsKICAgIHRocm93IG5ldyBFcnJvcign5a6J5YWo44Gq5Lmx5pWw55Sf5oiQ5qmf6IO944KS5Yip55So44Gn44GN44G+44Gb44KT44CCJyk7CiAgfQogIGNvbnN0IGJ5dGVDb3VudCA9IE1hdGguY2VpbChsZW5ndGggLyAyKTsKICBjb25zdCBieXRlcyA9IG5ldyBVaW50OEFycmF5KGJ5dGVDb3VudCk7CiAgZ2xvYmFsVGhpcy5jcnlwdG8uZ2V0UmFuZG9tVmFsdWVzKGJ5dGVzKTsKICByZXR1cm4gQXJyYXkuZnJvbShieXRlcywgKGJ5dGUpID0+IGJ5dGUudG9TdHJpbmcoMTYpLnBhZFN0YXJ0KDIsICcwJykpCiAgICAuam9pbignJykKICAgIC5zbGljZSgwLCBsZW5ndGgpCiAgICAudG9VcHBlckNhc2UoKTsKfQoKZnVuY3Rpb24gcGFydE51bWJlcldpZHRoKHBhcnRDb3VudCkgewogIHJldHVybiBNYXRoLm1heCgzLCBTdHJpbmcocGFydENvdW50KS5sZW5ndGgpOwp9CgpmdW5jdGlvbiBjcmVhdGVQYWNrYWdlTmFtZXMob3JpZ2luYWxOYW1lLCBwYWNrYWdlSWQsIHBhcnRDb3VudCkgewogIGNvbnN0IHN0ZW0gPSBzYW5pdGl6ZVN0ZW0ob3JpZ2luYWxOYW1lKTsKICBjb25zdCBwcmVmaXggPSBzYW5pdGl6ZUZpbGVuYW1lKGAke3N0ZW19XyR7cGFja2FnZUlkfWAsIHsgbWF4TGVuZ3RoOiAxMjAgfSk7CiAgY29uc3Qgd2lkdGggPSBwYXJ0TnVtYmVyV2lkdGgocGFydENvdW50KTsKICByZXR1cm4gewogICAgc3RlbSwKICAgIHByZWZpeCwKICAgIGZvbGRlck5hbWU6IHNhbml0aXplRmlsZW5hbWUoYFNwbGl0U2VuZF8ke3ByZWZpeH1gLCB7IG1heExlbmd0aDogMTUwIH0pLAogICAgbWFuaWZlc3ROYW1lOiBgJHtwcmVmaXh9LnNwbGl0c2VuZC5qc29uYCwKICAgIGluc3RydWN0aW9uc05hbWU6ICflvqnlhYPmlrnms5UudHh0JywKICAgIHBhcnROYW1lKGluZGV4KSB7CiAgICAgIHJldHVybiBgJHtwcmVmaXh9LnBhcnQke1N0cmluZyhpbmRleCkucGFkU3RhcnQod2lkdGgsICcwJyl9YDsKICAgIH0sCiAgfTsKfQoKLy8gPT09PT0gdXRpbHMuanMgPT09PT0KZnVuY3Rpb24gZm9ybWF0Qnl0ZXMoYnl0ZXMsIGRlY2ltYWxzID0gMikgewogIGlmICghTnVtYmVyLmlzRmluaXRlKGJ5dGVzKSkgcmV0dXJuICfigJQnOwogIGlmIChieXRlcyA9PT0gMCkgcmV0dXJuICcwIEInOwogIGNvbnN0IHVuaXRzID0gWydCJywgJ0tCJywgJ01CJywgJ0dCJywgJ1RCJywgJ1BCJ107CiAgY29uc3QgaW5kZXggPSBNYXRoLm1pbihNYXRoLmZsb29yKE1hdGgubG9nKE1hdGguYWJzKGJ5dGVzKSkgLyBNYXRoLmxvZygxMDAwKSksIHVuaXRzLmxlbmd0aCAtIDEpOwogIGNvbnN0IHZhbHVlID0gYnl0ZXMgLyAoMTAwMCAqKiBpbmRleCk7CiAgcmV0dXJuIGAke3ZhbHVlLnRvRml4ZWQoaW5kZXggPT09IDAgPyAwIDogZGVjaW1hbHMpfSAke3VuaXRzW2luZGV4XX1gOwp9CgpmdW5jdGlvbiBmb3JtYXRQZXJjZW50KHByb2Nlc3NlZCwgdG90YWwpIHsKICBpZiAodG90YWwgPD0gMCkgcmV0dXJuIDEwMDsKICByZXR1cm4gTWF0aC5taW4oMTAwLCBNYXRoLm1heCgwLCAocHJvY2Vzc2VkIC8gdG90YWwpICogMTAwKSk7Cn0KCmZ1bmN0aW9uIGNhbGN1bGF0ZVBhcnRDb3VudChmaWxlU2l6ZSwgcGFydFNpemUpIHsKICBpZiAoIU51bWJlci5pc1NhZmVJbnRlZ2VyKGZpbGVTaXplKSB8fCBmaWxlU2l6ZSA8IDApIHsKICAgIHRocm93IG5ldyBSYW5nZUVycm9yKCfjg5XjgqHjgqTjg6vjgrXjgqTjgrrjgYzkuI3mraPjgafjgZnjgIInKTsKICB9CiAgaWYgKCFOdW1iZXIuaXNTYWZlSW50ZWdlcihwYXJ0U2l6ZSkgfHwgcGFydFNpemUgPD0gMCkgewogICAgdGhyb3cgbmV3IFJhbmdlRXJyb3IoJ+WIhuWJsuOCteOCpOOCuuOBrzHjg5DjgqTjg4jku6XkuIrjga7mlbTmlbDjgavjgZfjgabjgY/jgaDjgZXjgYTjgIInKTsKICB9CiAgcmV0dXJuIE1hdGgubWF4KDEsIE1hdGguY2VpbChmaWxlU2l6ZSAvIHBhcnRTaXplKSk7Cn0KCmZ1bmN0aW9uIGFzc2VydE5vdENhbmNlbGxlZChzaG91bGRDYW5jZWwpIHsKICBpZiAoc2hvdWxkQ2FuY2VsPy4oKSkgdGhyb3cgbmV3IENhbmNlbGxlZEVycm9yKCk7Cn0KCmZ1bmN0aW9uIG5leHRUYXNrKCkgewogIHJldHVybiBuZXcgUHJvbWlzZSgocmVzb2x2ZSkgPT4gc2V0VGltZW91dChyZXNvbHZlLCAwKSk7Cn0KCmZ1bmN0aW9uIGNyZWF0ZVByb2dyZXNzUmVwb3J0ZXIoY2FsbGJhY2ssIG1pbkludGVydmFsTXMgPSA4MCkgewogIGxldCBsYXN0VGltZSA9IDA7CiAgbGV0IGxhc3RQcm9jZXNzZWQgPSAtMTsKICByZXR1cm4gKHByb2dyZXNzLCBmb3JjZSA9IGZhbHNlKSA9PiB7CiAgICBpZiAoIWNhbGxiYWNrKSByZXR1cm47CiAgICBjb25zdCBub3cgPSBEYXRlLm5vdygpOwogICAgaWYgKGZvcmNlIHx8IHByb2dyZXNzLnByb2Nlc3NlZEJ5dGVzID09PSBwcm9ncmVzcy50b3RhbEJ5dGVzIHx8IG5vdyAtIGxhc3RUaW1lID49IG1pbkludGVydmFsTXMpIHsKICAgICAgaWYgKHByb2dyZXNzLnByb2Nlc3NlZEJ5dGVzICE9PSBsYXN0UHJvY2Vzc2VkIHx8IGZvcmNlKSB7CiAgICAgICAgY2FsbGJhY2socHJvZ3Jlc3MpOwogICAgICAgIGxhc3RQcm9jZXNzZWQgPSBwcm9ncmVzcy5wcm9jZXNzZWRCeXRlczsKICAgICAgICBsYXN0VGltZSA9IG5vdzsKICAgICAgfQogICAgfQogIH07Cn0KCmZ1bmN0aW9uIHNhZmVKc29uUGFyc2UodGV4dCkgewogIHRyeSB7CiAgICByZXR1cm4geyB2YWx1ZTogSlNPTi5wYXJzZSh0ZXh0KSwgZXJyb3I6IG51bGwgfTsKICB9IGNhdGNoIChlcnJvcikgewogICAgcmV0dXJuIHsgdmFsdWU6IG51bGwsIGVycm9yIH07CiAgfQp9CgovLyA9PT09PSBzaGEyNTYuanMgPT09PT0KY29uc3QgSyA9IG5ldyBVaW50MzJBcnJheShbCiAgMHg0MjhhMmY5OCwgMHg3MTM3NDQ5MSwgMHhiNWMwZmJjZiwgMHhlOWI1ZGJhNSwKICAweDM5NTZjMjViLCAweDU5ZjExMWYxLCAweDkyM2Y4MmE0LCAweGFiMWM1ZWQ1LAogIDB4ZDgwN2FhOTgsIDB4MTI4MzViMDEsIDB4MjQzMTg1YmUsIDB4NTUwYzdkYzMsCiAgMHg3MmJlNWQ3NCwgMHg4MGRlYjFmZSwgMHg5YmRjMDZhNywgMHhjMTliZjE3NCwKICAweGU0OWI2OWMxLCAweGVmYmU0Nzg2LCAweDBmYzE5ZGM2LCAweDI0MGNhMWNjLAogIDB4MmRlOTJjNmYsIDB4NGE3NDg0YWEsIDB4NWNiMGE5ZGMsIDB4NzZmOTg4ZGEsCiAgMHg5ODNlNTE1MiwgMHhhODMxYzY2ZCwgMHhiMDAzMjdjOCwgMHhiZjU5N2ZjNywKICAweGM2ZTAwYmYzLCAweGQ1YTc5MTQ3LCAweDA2Y2E2MzUxLCAweDE0MjkyOTY3LAogIDB4MjdiNzBhODUsIDB4MmUxYjIxMzgsIDB4NGQyYzZkZmMsIDB4NTMzODBkMTMsCiAgMHg2NTBhNzM1NCwgMHg3NjZhMGFiYiwgMHg4MWMyYzkyZSwgMHg5MjcyMmM4NSwKICAweGEyYmZlOGExLCAweGE4MWE2NjRiLCAweGMyNGI4YjcwLCAweGM3NmM1MWEzLAogIDB4ZDE5MmU4MTksIDB4ZDY5OTA2MjQsIDB4ZjQwZTM1ODUsIDB4MTA2YWEwNzAsCiAgMHgxOWE0YzExNiwgMHgxZTM3NmMwOCwgMHgyNzQ4Nzc0YywgMHgzNGIwYmNiNSwKICAweDM5MWMwY2IzLCAweDRlZDhhYTRhLCAweDViOWNjYTRmLCAweDY4MmU2ZmYzLAogIDB4NzQ4ZjgyZWUsIDB4NzhhNTYzNmYsIDB4ODRjODc4MTQsIDB4OGNjNzAyMDgsCiAgMHg5MGJlZmZmYSwgMHhhNDUwNmNlYiwgMHhiZWY5YTNmNywgMHhjNjcxNzhmMiwKXSk7CgpmdW5jdGlvbiByb3RyKHZhbHVlLCBiaXRzKSB7CiAgcmV0dXJuICh2YWx1ZSA+Pj4gYml0cykgfCAodmFsdWUgPDwgKDMyIC0gYml0cykpOwp9CgpmdW5jdGlvbiB0b0J5dGVzKGlucHV0KSB7CiAgaWYgKGlucHV0IGluc3RhbmNlb2YgVWludDhBcnJheSkgcmV0dXJuIGlucHV0OwogIGlmIChpbnB1dCBpbnN0YW5jZW9mIEFycmF5QnVmZmVyKSByZXR1cm4gbmV3IFVpbnQ4QXJyYXkoaW5wdXQpOwogIGlmIChBcnJheUJ1ZmZlci5pc1ZpZXcoaW5wdXQpKSB7CiAgICByZXR1cm4gbmV3IFVpbnQ4QXJyYXkoaW5wdXQuYnVmZmVyLCBpbnB1dC5ieXRlT2Zmc2V0LCBpbnB1dC5ieXRlTGVuZ3RoKTsKICB9CiAgdGhyb3cgbmV3IFR5cGVFcnJvcignU0hBLTI1NiBpbnB1dCBtdXN0IGJlIGFuIEFycmF5QnVmZmVyIG9yIHR5cGVkIGFycmF5LicpOwp9CgpjbGFzcyBTaGEyNTYgewogIGNvbnN0cnVjdG9yKCkgewogICAgdGhpcy5zdGF0ZSA9IG5ldyBVaW50MzJBcnJheShbCiAgICAgIDB4NmEwOWU2NjcsIDB4YmI2N2FlODUsIDB4M2M2ZWYzNzIsIDB4YTU0ZmY1M2EsCiAgICAgIDB4NTEwZTUyN2YsIDB4OWIwNTY4OGMsIDB4MWY4M2Q5YWIsIDB4NWJlMGNkMTksCiAgICBdKTsKICAgIHRoaXMuYnVmZmVyID0gbmV3IFVpbnQ4QXJyYXkoNjQpOwogICAgdGhpcy5idWZmZXJMZW5ndGggPSAwOwogICAgdGhpcy5ieXRlc0hhc2hlZCA9IDA7CiAgICB0aGlzLmZpbmlzaGVkID0gZmFsc2U7CiAgICB0aGlzLndvcmRzID0gbmV3IFVpbnQzMkFycmF5KDY0KTsKICB9CgogIHVwZGF0ZShpbnB1dCkgewogICAgaWYgKHRoaXMuZmluaXNoZWQpIHRocm93IG5ldyBFcnJvcignU0hBLTI1NiBoYXMgYWxyZWFkeSBiZWVuIGZpbmFsaXplZC4nKTsKICAgIGNvbnN0IGRhdGEgPSB0b0J5dGVzKGlucHV0KTsKICAgIGlmIChkYXRhLmJ5dGVMZW5ndGggPT09IDApIHJldHVybiB0aGlzOwoKICAgIHRoaXMuYnl0ZXNIYXNoZWQgKz0gZGF0YS5ieXRlTGVuZ3RoOwogICAgaWYgKCFOdW1iZXIuaXNTYWZlSW50ZWdlcih0aGlzLmJ5dGVzSGFzaGVkKSkgewogICAgICB0aHJvdyBuZXcgUmFuZ2VFcnJvcignSW5wdXQgaXMgdG9vIGxhcmdlIGZvciBzYWZlIEphdmFTY3JpcHQgaW50ZWdlciBhY2NvdW50aW5nLicpOwogICAgfQoKICAgIGxldCBwb3NpdGlvbiA9IDA7CgogICAgaWYgKHRoaXMuYnVmZmVyTGVuZ3RoID4gMCkgewogICAgICBjb25zdCB0YWtlID0gTWF0aC5taW4oNjQgLSB0aGlzLmJ1ZmZlckxlbmd0aCwgZGF0YS5ieXRlTGVuZ3RoKTsKICAgICAgdGhpcy5idWZmZXIuc2V0KGRhdGEuc3ViYXJyYXkoMCwgdGFrZSksIHRoaXMuYnVmZmVyTGVuZ3RoKTsKICAgICAgdGhpcy5idWZmZXJMZW5ndGggKz0gdGFrZTsKICAgICAgcG9zaXRpb24gKz0gdGFrZTsKICAgICAgaWYgKHRoaXMuYnVmZmVyTGVuZ3RoID09PSA2NCkgewogICAgICAgIHRoaXMuI3Byb2Nlc3NCbG9jayh0aGlzLmJ1ZmZlciwgMCk7CiAgICAgICAgdGhpcy5idWZmZXJMZW5ndGggPSAwOwogICAgICB9CiAgICB9CgogICAgd2hpbGUgKHBvc2l0aW9uICsgNjQgPD0gZGF0YS5ieXRlTGVuZ3RoKSB7CiAgICAgIHRoaXMuI3Byb2Nlc3NCbG9jayhkYXRhLCBwb3NpdGlvbik7CiAgICAgIHBvc2l0aW9uICs9IDY0OwogICAgfQoKICAgIGlmIChwb3NpdGlvbiA8IGRhdGEuYnl0ZUxlbmd0aCkgewogICAgICB0aGlzLmJ1ZmZlci5zZXQoZGF0YS5zdWJhcnJheShwb3NpdGlvbiksIDApOwogICAgICB0aGlzLmJ1ZmZlckxlbmd0aCA9IGRhdGEuYnl0ZUxlbmd0aCAtIHBvc2l0aW9uOwogICAgfQoKICAgIHJldHVybiB0aGlzOwogIH0KCiAgZGlnZXN0KCkgewogICAgaWYgKCF0aGlzLmZpbmlzaGVkKSB0aGlzLiNmaW5pc2goKTsKICAgIGNvbnN0IG91dHB1dCA9IG5ldyBVaW50OEFycmF5KDMyKTsKICAgIGNvbnN0IHZpZXcgPSBuZXcgRGF0YVZpZXcob3V0cHV0LmJ1ZmZlcik7CiAgICBmb3IgKGxldCBpID0gMDsgaSA8IDg7IGkgKz0gMSkgewogICAgICB2aWV3LnNldFVpbnQzMihpICogNCwgdGhpcy5zdGF0ZVtpXSwgZmFsc2UpOwogICAgfQogICAgcmV0dXJuIG91dHB1dDsKICB9CgogIGhleCgpIHsKICAgIHJldHVybiBBcnJheS5mcm9tKHRoaXMuZGlnZXN0KCksIChieXRlKSA9PiBieXRlLnRvU3RyaW5nKDE2KS5wYWRTdGFydCgyLCAnMCcpKS5qb2luKCcnKTsKICB9CgogICNmaW5pc2goKSB7CiAgICBjb25zdCBieXRlc0hhc2hlZCA9IHRoaXMuYnl0ZXNIYXNoZWQ7CiAgICBsZXQgcG9zaXRpb24gPSB0aGlzLmJ1ZmZlckxlbmd0aDsKICAgIHRoaXMuYnVmZmVyW3Bvc2l0aW9uXSA9IDB4ODA7CiAgICBwb3NpdGlvbiArPSAxOwoKICAgIGlmIChwb3NpdGlvbiA+IDU2KSB7CiAgICAgIHRoaXMuYnVmZmVyLmZpbGwoMCwgcG9zaXRpb24sIDY0KTsKICAgICAgdGhpcy4jcHJvY2Vzc0Jsb2NrKHRoaXMuYnVmZmVyLCAwKTsKICAgICAgdGhpcy5idWZmZXIuZmlsbCgwLCAwLCA1Nik7CiAgICB9IGVsc2UgewogICAgICB0aGlzLmJ1ZmZlci5maWxsKDAsIHBvc2l0aW9uLCA1Nik7CiAgICB9CgogICAgY29uc3QgYml0TGVuZ3RoSGlnaCA9IE1hdGguZmxvb3IoYnl0ZXNIYXNoZWQgLyAweDIwMDAwMDAwKTsKICAgIGNvbnN0IGJpdExlbmd0aExvdyA9IChieXRlc0hhc2hlZCA8PCAzKSA+Pj4gMDsKICAgIGNvbnN0IHZpZXcgPSBuZXcgRGF0YVZpZXcodGhpcy5idWZmZXIuYnVmZmVyKTsKICAgIHZpZXcuc2V0VWludDMyKDU2LCBiaXRMZW5ndGhIaWdoID4+PiAwLCBmYWxzZSk7CiAgICB2aWV3LnNldFVpbnQzMig2MCwgYml0TGVuZ3RoTG93LCBmYWxzZSk7CiAgICB0aGlzLiNwcm9jZXNzQmxvY2sodGhpcy5idWZmZXIsIDApOwoKICAgIHRoaXMuZmluaXNoZWQgPSB0cnVlOwogICAgdGhpcy5idWZmZXJMZW5ndGggPSAwOwogIH0KCiAgI3Byb2Nlc3NCbG9jayhjaHVuaywgb2Zmc2V0KSB7CiAgICBjb25zdCB3ID0gdGhpcy53b3JkczsKICAgIGZvciAobGV0IGkgPSAwOyBpIDwgMTY7IGkgKz0gMSkgewogICAgICBjb25zdCBqID0gb2Zmc2V0ICsgaSAqIDQ7CiAgICAgIHdbaV0gPSAoCiAgICAgICAgKGNodW5rW2pdIDw8IDI0KQogICAgICAgIHwgKGNodW5rW2ogKyAxXSA8PCAxNikKICAgICAgICB8IChjaHVua1tqICsgMl0gPDwgOCkKICAgICAgICB8IGNodW5rW2ogKyAzXQogICAgICApID4+PiAwOwogICAgfQoKICAgIGZvciAobGV0IGkgPSAxNjsgaSA8IDY0OyBpICs9IDEpIHsKICAgICAgY29uc3QgeCA9IHdbaSAtIDE1XTsKICAgICAgY29uc3QgeSA9IHdbaSAtIDJdOwogICAgICBjb25zdCBzMCA9IHJvdHIoeCwgNykgXiByb3RyKHgsIDE4KSBeICh4ID4+PiAzKTsKICAgICAgY29uc3QgczEgPSByb3RyKHksIDE3KSBeIHJvdHIoeSwgMTkpIF4gKHkgPj4+IDEwKTsKICAgICAgd1tpXSA9ICh3W2kgLSAxNl0gKyBzMCArIHdbaSAtIDddICsgczEpID4+PiAwOwogICAgfQoKICAgIGxldCBhID0gdGhpcy5zdGF0ZVswXTsKICAgIGxldCBiID0gdGhpcy5zdGF0ZVsxXTsKICAgIGxldCBjID0gdGhpcy5zdGF0ZVsyXTsKICAgIGxldCBkID0gdGhpcy5zdGF0ZVszXTsKICAgIGxldCBlID0gdGhpcy5zdGF0ZVs0XTsKICAgIGxldCBmID0gdGhpcy5zdGF0ZVs1XTsKICAgIGxldCBnID0gdGhpcy5zdGF0ZVs2XTsKICAgIGxldCBoID0gdGhpcy5zdGF0ZVs3XTsKCiAgICBmb3IgKGxldCBpID0gMDsgaSA8IDY0OyBpICs9IDEpIHsKICAgICAgY29uc3Qgc3VtMSA9IHJvdHIoZSwgNikgXiByb3RyKGUsIDExKSBeIHJvdHIoZSwgMjUpOwogICAgICBjb25zdCBjaG9vc2UgPSAoZSAmIGYpIF4gKH5lICYgZyk7CiAgICAgIGNvbnN0IHRlbXAxID0gKGggKyBzdW0xICsgY2hvb3NlICsgS1tpXSArIHdbaV0pID4+PiAwOwogICAgICBjb25zdCBzdW0wID0gcm90cihhLCAyKSBeIHJvdHIoYSwgMTMpIF4gcm90cihhLCAyMik7CiAgICAgIGNvbnN0IG1ham9yaXR5ID0gKGEgJiBiKSBeIChhICYgYykgXiAoYiAmIGMpOwogICAgICBjb25zdCB0ZW1wMiA9IChzdW0wICsgbWFqb3JpdHkpID4+PiAwOwoKICAgICAgaCA9IGc7CiAgICAgIGcgPSBmOwogICAgICBmID0gZTsKICAgICAgZSA9IChkICsgdGVtcDEpID4+PiAwOwogICAgICBkID0gYzsKICAgICAgYyA9IGI7CiAgICAgIGIgPSBhOwogICAgICBhID0gKHRlbXAxICsgdGVtcDIpID4+PiAwOwogICAgfQoKICAgIHRoaXMuc3RhdGVbMF0gPSAodGhpcy5zdGF0ZVswXSArIGEpID4+PiAwOwogICAgdGhpcy5zdGF0ZVsxXSA9ICh0aGlzLnN0YXRlWzFdICsgYikgPj4+IDA7CiAgICB0aGlzLnN0YXRlWzJdID0gKHRoaXMuc3RhdGVbMl0gKyBjKSA+Pj4gMDsKICAgIHRoaXMuc3RhdGVbM10gPSAodGhpcy5zdGF0ZVszXSArIGQpID4+PiAwOwogICAgdGhpcy5zdGF0ZVs0XSA9ICh0aGlzLnN0YXRlWzRdICsgZSkgPj4+IDA7CiAgICB0aGlzLnN0YXRlWzVdID0gKHRoaXMuc3RhdGVbNV0gKyBmKSA+Pj4gMDsKICAgIHRoaXMuc3RhdGVbNl0gPSAodGhpcy5zdGF0ZVs2XSArIGcpID4+PiAwOwogICAgdGhpcy5zdGF0ZVs3XSA9ICh0aGlzLnN0YXRlWzddICsgaCkgPj4+IDA7CiAgfQp9CgpmdW5jdGlvbiBzaGEyNTZIZXgoaW5wdXQpIHsKICByZXR1cm4gbmV3IFNoYTI1NigpLnVwZGF0ZShpbnB1dCkuaGV4KCk7Cn0KCi8vID09PT09IGJsb2Itc3RyZWFtLmpzID09PT09CmFzeW5jIGZ1bmN0aW9uKiByZWFkQmxvYlJhbmdlKGJsb2IsIHsKICBzdGFydCA9IDAsCiAgbGVuZ3RoID0gYmxvYi5zaXplIC0gc3RhcnQsCiAgY2h1bmtTaXplID0gREVGQVVMVF9DSFVOS19TSVpFLAogIHNob3VsZENhbmNlbCwKICB5aWVsZEV2ZXJ5ID0gNCwKfSA9IHt9KSB7CiAgaWYgKCEoYmxvYiBpbnN0YW5jZW9mIEJsb2IpKSB0aHJvdyBuZXcgVHlwZUVycm9yKCdibG9iIG11c3QgYmUgYSBCbG9iLicpOwogIGlmICghTnVtYmVyLmlzU2FmZUludGVnZXIoc3RhcnQpIHx8IHN0YXJ0IDwgMCB8fCBzdGFydCA+IGJsb2Iuc2l6ZSkgdGhyb3cgbmV3IFJhbmdlRXJyb3IoJ3N0YXJ0IGlzIGludmFsaWQuJyk7CiAgaWYgKCFOdW1iZXIuaXNTYWZlSW50ZWdlcihsZW5ndGgpIHx8IGxlbmd0aCA8IDAgfHwgc3RhcnQgKyBsZW5ndGggPiBibG9iLnNpemUpIHRocm93IG5ldyBSYW5nZUVycm9yKCdsZW5ndGggaXMgaW52YWxpZC4nKTsKICBpZiAoIU51bWJlci5pc1NhZmVJbnRlZ2VyKGNodW5rU2l6ZSkgfHwgY2h1bmtTaXplIDw9IDApIHRocm93IG5ldyBSYW5nZUVycm9yKCdjaHVua1NpemUgaXMgaW52YWxpZC4nKTsKCiAgY29uc3QgZW5kID0gc3RhcnQgKyBsZW5ndGg7CiAgbGV0IHBvc2l0aW9uID0gc3RhcnQ7CiAgbGV0IGNodW5rSW5kZXggPSAwOwoKICB3aGlsZSAocG9zaXRpb24gPCBlbmQpIHsKICAgIGFzc2VydE5vdENhbmNlbGxlZChzaG91bGRDYW5jZWwpOwogICAgY29uc3QgbmV4dFBvc2l0aW9uID0gTWF0aC5taW4oZW5kLCBwb3NpdGlvbiArIGNodW5rU2l6ZSk7CiAgICBjb25zdCBidWZmZXIgPSBhd2FpdCBibG9iLnNsaWNlKHBvc2l0aW9uLCBuZXh0UG9zaXRpb24pLmFycmF5QnVmZmVyKCk7CiAgICB5aWVsZCBuZXcgVWludDhBcnJheShidWZmZXIpOwogICAgcG9zaXRpb24gPSBuZXh0UG9zaXRpb247CiAgICBjaHVua0luZGV4ICs9IDE7CiAgICBpZiAoeWllbGRFdmVyeSA+IDAgJiYgY2h1bmtJbmRleCAlIHlpZWxkRXZlcnkgPT09IDApIGF3YWl0IG5leHRUYXNrKCk7CiAgfQp9CgovLyA9PT09PSBtYW5pZmVzdC5qcyA9PT09PQpjb25zdCBTSEEyNTZfSEVYID0gL15bYS1mMC05XXs2NH0kL2k7CmNvbnN0IFBBQ0tBR0VfSUQgPSAvXltBLUYwLTldezh9JC87CgpmdW5jdGlvbiBjcmVhdGVNYW5pZmVzdCh7CiAgcGFja2FnZUlkLAogIG9yaWdpbmFsTmFtZSwKICBvcmlnaW5hbFNpemUsCiAgbWltZVR5cGUgPSAnJywKICBsYXN0TW9kaWZpZWQgPSAwLAogIG9yaWdpbmFsU2hhMjU2LAogIHBhcnRTaXplLAogIHBhcnRzLAp9KSB7CiAgcmV0dXJuIHsKICAgIGZvcm1hdDogRk9STUFUX05BTUUsCiAgICB2ZXJzaW9uOiBGT1JNQVRfVkVSU0lPTiwKICAgIHBhY2thZ2VJZCwKICAgIGNyZWF0ZWRBdDogbmV3IERhdGUoKS50b0lTT1N0cmluZygpLAogICAgY3JlYXRlZEJ5OiB7CiAgICAgIGFwcGxpY2F0aW9uOiBBUFBfTkFNRSwKICAgICAgdmVyc2lvbjogQVBQX1ZFUlNJT04sCiAgICB9LAogICAgaW50ZWdyaXR5OiB7CiAgICAgIGFsZ29yaXRobTogSEFTSF9BTEdPUklUSE0sCiAgICB9LAogICAgb3JpZ2luYWw6IHsKICAgICAgbmFtZTogb3JpZ2luYWxOYW1lLAogICAgICBzaXplOiBvcmlnaW5hbFNpemUsCiAgICAgIG1pbWVUeXBlOiB0eXBlb2YgbWltZVR5cGUgPT09ICdzdHJpbmcnID8gbWltZVR5cGUgOiAnJywKICAgICAgbGFzdE1vZGlmaWVkOiBOdW1iZXIuaXNGaW5pdGUobGFzdE1vZGlmaWVkKSA/IGxhc3RNb2RpZmllZCA6IDAsCiAgICAgIHNoYTI1Njogb3JpZ2luYWxTaGEyNTYsCiAgICB9LAogICAgc3BsaXQ6IHsKICAgICAgbWV0aG9kOiAnY29udGlndW91cy1ieXRlcycsCiAgICAgIHBhcnRTaXplLAogICAgICBwYXJ0Q291bnQ6IHBhcnRzLmxlbmd0aCwKICAgIH0sCiAgICBwYXJ0cywKICB9Owp9CgpmdW5jdGlvbiBpbnRlZ2VySW5SYW5nZSh2YWx1ZSwgbWluaW11bSwgbWF4aW11bSA9IE51bWJlci5NQVhfU0FGRV9JTlRFR0VSKSB7CiAgcmV0dXJuIE51bWJlci5pc1NhZmVJbnRlZ2VyKHZhbHVlKSAmJiB2YWx1ZSA+PSBtaW5pbXVtICYmIHZhbHVlIDw9IG1heGltdW07Cn0KCmZ1bmN0aW9uIHZhbGlkYXRlTWFuaWZlc3QobWFuaWZlc3QpIHsKICBjb25zdCBlcnJvcnMgPSBbXTsKICBjb25zdCBhZGQgPSAobWVzc2FnZSkgPT4gZXJyb3JzLnB1c2gobWVzc2FnZSk7CgogIGlmICghbWFuaWZlc3QgfHwgdHlwZW9mIG1hbmlmZXN0ICE9PSAnb2JqZWN0JyB8fCBBcnJheS5pc0FycmF5KG1hbmlmZXN0KSkgewogICAgcmV0dXJuIHsgdmFsaWQ6IGZhbHNlLCBlcnJvcnM6IFsn44Oe44OL44OV44Kn44K544OI44Gu5pyA5LiK5L2N44Gv44Kq44OW44K444Kn44Kv44OI44Gn44GC44KL5b+F6KaB44GM44GC44KK44G+44GZ44CCJ10gfTsKICB9CgogIGlmIChtYW5pZmVzdC5mb3JtYXQgIT09IEZPUk1BVF9OQU1FKSBhZGQoYGZvcm1hdCDjga8gIiR7Rk9STUFUX05BTUV9IiDjgafjgYLjgovlv4XopoHjgYzjgYLjgorjgb7jgZnjgIJgKTsKICBpZiAobWFuaWZlc3QudmVyc2lvbiAhPT0gRk9STUFUX1ZFUlNJT04pIGFkZChg5a++5b+c44GX44Gm44GE44Gq44GE5b2i5byP44OQ44O844K444On44Oz44Gn44GZOiAke1N0cmluZyhtYW5pZmVzdC52ZXJzaW9uKX1gKTsKICBpZiAoIVBBQ0tBR0VfSUQudGVzdChtYW5pZmVzdC5wYWNrYWdlSWQgPz8gJycpKSBhZGQoJ3BhY2thZ2VJZCDjga845qGB44GuMTbpgLLmlbDjgafjgYLjgovlv4XopoHjgYzjgYLjgorjgb7jgZnjgIInKTsKICBpZiAobWFuaWZlc3QuaW50ZWdyaXR5Py5hbGdvcml0aG0gIT09IEhBU0hfQUxHT1JJVEhNKSBhZGQoYGludGVncml0eS5hbGdvcml0aG0g44GvICR7SEFTSF9BTEdPUklUSE19IOOBp+OBguOCi+W/heimgeOBjOOBguOCiuOBvuOBmeOAgmApOwoKICBjb25zdCBvcmlnaW5hbCA9IG1hbmlmZXN0Lm9yaWdpbmFsOwogIGlmICghb3JpZ2luYWwgfHwgdHlwZW9mIG9yaWdpbmFsICE9PSAnb2JqZWN0JykgewogICAgYWRkKCdvcmlnaW5hbCDmg4XloLHjgYzjgYLjgorjgb7jgZvjgpPjgIInKTsKICB9IGVsc2UgewogICAgaWYgKCFpc1NhZmVCYXNlbmFtZShvcmlnaW5hbC5uYW1lKSkgYWRkKCdvcmlnaW5hbC5uYW1lIOOBjOS4jeato+OBp+OBmeOAgicpOwogICAgaWYgKCFpbnRlZ2VySW5SYW5nZShvcmlnaW5hbC5zaXplLCAwKSkgYWRkKCdvcmlnaW5hbC5zaXplIOOBjOS4jeato+OBp+OBmeOAgicpOwogICAgaWYgKCFTSEEyNTZfSEVYLnRlc3Qob3JpZ2luYWwuc2hhMjU2ID8/ICcnKSkgYWRkKCdvcmlnaW5hbC5zaGEyNTYg44GM5LiN5q2j44Gn44GZ44CCJyk7CiAgICBpZiAodHlwZW9mIG9yaWdpbmFsLm1pbWVUeXBlICE9PSAnc3RyaW5nJykgYWRkKCdvcmlnaW5hbC5taW1lVHlwZSDjgYzkuI3mraPjgafjgZnjgIInKTsKICAgIGlmICghTnVtYmVyLmlzRmluaXRlKG9yaWdpbmFsLmxhc3RNb2RpZmllZCkgfHwgb3JpZ2luYWwubGFzdE1vZGlmaWVkIDwgMCkgYWRkKCdvcmlnaW5hbC5sYXN0TW9kaWZpZWQg44GM5LiN5q2j44Gn44GZ44CCJyk7CiAgfQoKICBjb25zdCBzcGxpdCA9IG1hbmlmZXN0LnNwbGl0OwogIGlmICghc3BsaXQgfHwgdHlwZW9mIHNwbGl0ICE9PSAnb2JqZWN0JykgewogICAgYWRkKCdzcGxpdCDmg4XloLHjgYzjgYLjgorjgb7jgZvjgpPjgIInKTsKICB9IGVsc2UgewogICAgaWYgKHNwbGl0Lm1ldGhvZCAhPT0gJ2NvbnRpZ3VvdXMtYnl0ZXMnKSBhZGQoJ+WvvuW/nOOBl+OBpuOBhOOBquOBhOWIhuWJsuaWueW8j+OBp+OBmeOAgicpOwogICAgaWYgKCFpbnRlZ2VySW5SYW5nZShzcGxpdC5wYXJ0U2l6ZSwgMSkpIGFkZCgnc3BsaXQucGFydFNpemUg44GM5LiN5q2j44Gn44GZ44CCJyk7CiAgICBpZiAoIWludGVnZXJJblJhbmdlKHNwbGl0LnBhcnRDb3VudCwgMSwgTUFYX1BBUlRfQ09VTlQpKSBhZGQoYHNwbGl0LnBhcnRDb3VudCDjga8x44CcJHtNQVhfUEFSVF9DT1VOVH3jga7nr4Tlm7LjgafjgYLjgovlv4XopoHjgYzjgYLjgorjgb7jgZnjgIJgKTsKICB9CgogIGlmICghQXJyYXkuaXNBcnJheShtYW5pZmVzdC5wYXJ0cykpIHsKICAgIGFkZCgncGFydHMg44Gv6YWN5YiX44Gn44GC44KL5b+F6KaB44GM44GC44KK44G+44GZ44CCJyk7CiAgfSBlbHNlIGlmIChtYW5pZmVzdC5wYXJ0cy5sZW5ndGggPiBNQVhfUEFSVF9DT1VOVCkgewogICAgYWRkKGBwYXJ0cyDjgYzlpJrjgZnjgY7jgb7jgZnjgILkuIrpmZDjga8ke01BWF9QQVJUX0NPVU5UfeWAi+OBp+OBmeOAgmApOwogIH0KCiAgaWYgKGVycm9ycy5sZW5ndGggPiAwIHx8ICFvcmlnaW5hbCB8fCAhc3BsaXQgfHwgIUFycmF5LmlzQXJyYXkobWFuaWZlc3QucGFydHMpKSB7CiAgICByZXR1cm4geyB2YWxpZDogZmFsc2UsIGVycm9ycyB9OwogIH0KCiAgaWYgKG1hbmlmZXN0LnBhcnRzLmxlbmd0aCAhPT0gc3BsaXQucGFydENvdW50KSB7CiAgICBhZGQoJ3NwbGl0LnBhcnRDb3VudCDjgaggcGFydHMg44Gu5YCL5pWw44GM5LiA6Ie044GX44G+44Gb44KT44CCJyk7CiAgfQoKICBjb25zdCBleHBlY3RlZENvdW50ID0gY2FsY3VsYXRlUGFydENvdW50KG9yaWdpbmFsLnNpemUsIHNwbGl0LnBhcnRTaXplKTsKICBpZiAoc3BsaXQucGFydENvdW50ICE9PSBleHBlY3RlZENvdW50KSB7CiAgICBhZGQoYHBhcnRDb3VudCDjgYzlhYPjg5XjgqHjgqTjg6vjgrXjgqTjgrrjgajkuIDoh7TjgZfjgb7jgZvjgpPjgILmnJ/lvoXlgKQ6ICR7ZXhwZWN0ZWRDb3VudH1gKTsKICB9CgogIGNvbnN0IG5hbWVzID0gbmV3IFNldCgpOwogIGxldCBleHBlY3RlZE9mZnNldCA9IDA7CiAgbGV0IHRvdGFsU2l6ZSA9IDA7CgogIGZvciAobGV0IGkgPSAwOyBpIDwgbWFuaWZlc3QucGFydHMubGVuZ3RoOyBpICs9IDEpIHsKICAgIGNvbnN0IHBhcnQgPSBtYW5pZmVzdC5wYXJ0c1tpXTsKICAgIGNvbnN0IGV4cGVjdGVkSW5kZXggPSBpICsgMTsKICAgIGlmICghcGFydCB8fCB0eXBlb2YgcGFydCAhPT0gJ29iamVjdCcpIHsKICAgICAgYWRkKGBwYXJ0c1ske2l9XSDjgYzkuI3mraPjgafjgZnjgIJgKTsKICAgICAgY29udGludWU7CiAgICB9CiAgICBpZiAocGFydC5pbmRleCAhPT0gZXhwZWN0ZWRJbmRleCkgYWRkKGBwYXJ0c1ske2l9XS5pbmRleCDjga8gJHtleHBlY3RlZEluZGV4fSDjgafjgYLjgovlv4XopoHjgYzjgYLjgorjgb7jgZnjgIJgKTsKICAgIGlmICghaXNTYWZlQmFzZW5hbWUocGFydC5uYW1lKSkgYWRkKGBwYXJ0c1ske2l9XS5uYW1lIOOBjOS4jeato+OBp+OBmeOAgmApOwogICAgaWYgKG5hbWVzLmhhcyhwYXJ0Lm5hbWUpKSBhZGQoYOODkeODvOODhOWQjeOBjOmHjeikh+OBl+OBpuOBhOOBvuOBmTogJHtwYXJ0Lm5hbWV9YCk7CiAgICBuYW1lcy5hZGQocGFydC5uYW1lKTsKICAgIGlmICghaW50ZWdlckluUmFuZ2UocGFydC5vZmZzZXQsIDApKSBhZGQoYHBhcnRzWyR7aX1dLm9mZnNldCDjgYzkuI3mraPjgafjgZnjgIJgKTsKICAgIGlmIChwYXJ0Lm9mZnNldCAhPT0gZXhwZWN0ZWRPZmZzZXQpIGFkZChgcGFydHNbJHtpfV0ub2Zmc2V0IOOBjOmAo+e2muOBl+OBpuOBhOOBvuOBm+OCk+OAgmApOwogICAgaWYgKCFpbnRlZ2VySW5SYW5nZShwYXJ0LnNpemUsIDApKSBhZGQoYHBhcnRzWyR7aX1dLnNpemUg44GM5LiN5q2j44Gn44GZ44CCYCk7CiAgICBpZiAoIVNIQTI1Nl9IRVgudGVzdChwYXJ0LnNoYTI1NiA/PyAnJykpIGFkZChgcGFydHNbJHtpfV0uc2hhMjU2IOOBjOS4jeato+OBp+OBmeOAgmApOwoKICAgIGNvbnN0IGlzTGFzdCA9IGkgPT09IG1hbmlmZXN0LnBhcnRzLmxlbmd0aCAtIDE7CiAgICBpZiAoIWlzTGFzdCAmJiBwYXJ0LnNpemUgIT09IHNwbGl0LnBhcnRTaXplKSB7CiAgICAgIGFkZChgcGFydHNbJHtpfV0uc2l6ZSDjga/mnIDlvozjga7jg5Hjg7zjg4Tku6XlpJYgJHtzcGxpdC5wYXJ0U2l6ZX0gYnl0ZXMg44Gn44GC44KL5b+F6KaB44GM44GC44KK44G+44GZ44CCYCk7CiAgICB9CiAgICBpZiAoaXNMYXN0ICYmIG9yaWdpbmFsLnNpemUgPiAwICYmIChwYXJ0LnNpemUgPD0gMCB8fCBwYXJ0LnNpemUgPiBzcGxpdC5wYXJ0U2l6ZSkpIHsKICAgICAgYWRkKGDmnIDlvozjga7jg5Hjg7zjg4TjgrXjgqTjgrrjgYzkuI3mraPjgafjgZk6ICR7cGFydC5zaXplfWApOwogICAgfQogICAgaWYgKG9yaWdpbmFsLnNpemUgPT09IDAgJiYgKG1hbmlmZXN0LnBhcnRzLmxlbmd0aCAhPT0gMSB8fCBwYXJ0LnNpemUgIT09IDApKSB7CiAgICAgIGFkZCgnMOODkOOCpOODiOODleOCoeOCpOODq+OBrzDjg5DjgqTjg4jjga7jg5Hjg7zjg4Qx5YCL44Gn6KGo54++44GZ44KL5b+F6KaB44GM44GC44KK44G+44GZ44CCJyk7CiAgICB9CgogICAgZXhwZWN0ZWRPZmZzZXQgKz0gcGFydC5zaXplOwogICAgdG90YWxTaXplICs9IHBhcnQuc2l6ZTsKICB9CgogIGlmICh0b3RhbFNpemUgIT09IG9yaWdpbmFsLnNpemUpIHsKICAgIGFkZChg44OR44O844OE5ZCI6KiI44K144Kk44K644Go5YWD44OV44Kh44Kk44Or44K144Kk44K644GM5LiA6Ie044GX44G+44Gb44KT44CC5ZCI6KiIOiAke3RvdGFsU2l6ZX0sIOWFgzogJHtvcmlnaW5hbC5zaXplfWApOwogIH0KCiAgcmV0dXJuIHsgdmFsaWQ6IGVycm9ycy5sZW5ndGggPT09IDAsIGVycm9ycyB9Owp9CgpmdW5jdGlvbiBhc3NlcnRWYWxpZE1hbmlmZXN0KG1hbmlmZXN0KSB7CiAgY29uc3QgcmVzdWx0ID0gdmFsaWRhdGVNYW5pZmVzdChtYW5pZmVzdCk7CiAgaWYgKCFyZXN1bHQudmFsaWQpIHsKICAgIHRocm93IG5ldyBTcGxpdFNlbmRFcnJvcigKICAgICAgYOW+qeWFg+aDheWgseOBjOS4jeato+OBp+OBmeOAglxuJHtyZXN1bHQuZXJyb3JzLm1hcCgoZXJyb3IpID0+IGDjg7ske2Vycm9yfWApLmpvaW4oJ1xuJyl9YCwKICAgICAgJ0lOVkFMSURfTUFOSUZFU1QnLAogICAgICByZXN1bHQuZXJyb3JzLAogICAgKTsKICB9CiAgcmV0dXJuIG1hbmlmZXN0Owp9CgpmdW5jdGlvbiBzZXJpYWxpemVNYW5pZmVzdChtYW5pZmVzdCkgewogIHJldHVybiBgJHtKU09OLnN0cmluZ2lmeShtYW5pZmVzdCwgbnVsbCwgMil9XG5gOwp9CgovLyA9PT09PSByZXN0b3JlLWNvcmUuanMgPT09PT0KZnVuY3Rpb24gbm9ybWFsaXplUGFydE1hcChwYXJ0RmlsZXMpIHsKICBpZiAocGFydEZpbGVzIGluc3RhbmNlb2YgTWFwKSByZXR1cm4gcGFydEZpbGVzOwogIGNvbnN0IG1hcCA9IG5ldyBNYXAoKTsKICBmb3IgKGNvbnN0IGZpbGUgb2YgcGFydEZpbGVzID8/IFtdKSB7CiAgICBpZiAobWFwLmhhcyhmaWxlLm5hbWUpKSB7CiAgICAgIHRocm93IG5ldyBTcGxpdFNlbmRFcnJvcihg5ZCM5ZCN44Gu44OR44O844OE44GM6KSH5pWw44GC44KK44G+44GZOiAke2ZpbGUubmFtZX1gLCAnRFVQTElDQVRFX1BBUlQnKTsKICAgIH0KICAgIG1hcC5zZXQoZmlsZS5uYW1lLCBmaWxlKTsKICB9CiAgcmV0dXJuIG1hcDsKfQoKZnVuY3Rpb24gaW5zcGVjdFBhcnRzKG1hbmlmZXN0LCBwYXJ0RmlsZXMpIHsKICBhc3NlcnRWYWxpZE1hbmlmZXN0KG1hbmlmZXN0KTsKICBjb25zdCBmaWxlcyA9IG5vcm1hbGl6ZVBhcnRNYXAocGFydEZpbGVzKTsKICBjb25zdCBtaXNzaW5nID0gW107CiAgY29uc3Qgc2l6ZU1pc21hdGNoZXMgPSBbXTsKCiAgZm9yIChjb25zdCBwYXJ0IG9mIG1hbmlmZXN0LnBhcnRzKSB7CiAgICBjb25zdCBmaWxlID0gZmlsZXMuZ2V0KHBhcnQubmFtZSk7CiAgICBpZiAoIWZpbGUpIHsKICAgICAgbWlzc2luZy5wdXNoKHBhcnQubmFtZSk7CiAgICB9IGVsc2UgaWYgKGZpbGUuc2l6ZSAhPT0gcGFydC5zaXplKSB7CiAgICAgIHNpemVNaXNtYXRjaGVzLnB1c2goeyBuYW1lOiBwYXJ0Lm5hbWUsIGV4cGVjdGVkOiBwYXJ0LnNpemUsIGFjdHVhbDogZmlsZS5zaXplIH0pOwogICAgfQogIH0KCiAgcmV0dXJuIHsKICAgIHJlYWR5OiBtaXNzaW5nLmxlbmd0aCA9PT0gMCAmJiBzaXplTWlzbWF0Y2hlcy5sZW5ndGggPT09IDAsCiAgICBtaXNzaW5nLAogICAgc2l6ZU1pc21hdGNoZXMsCiAgICBtYXRjaGVkQ291bnQ6IG1hbmlmZXN0LnBhcnRzLmxlbmd0aCAtIG1pc3NpbmcubGVuZ3RoLAogICAgcmVxdWlyZWRDb3VudDogbWFuaWZlc3QucGFydHMubGVuZ3RoLAogIH07Cn0KCmFzeW5jIGZ1bmN0aW9uIHJlc3RvcmVQYXJ0cyh7CiAgbWFuaWZlc3QsCiAgcGFydEZpbGVzLAogIG91dHB1dFdyaXRlciwKICBjaHVua1NpemUgPSBERUZBVUxUX0NIVU5LX1NJWkUsCiAgb25Qcm9ncmVzcywKICBzaG91bGRDYW5jZWwsCn0pIHsKICBhc3NlcnRWYWxpZE1hbmlmZXN0KG1hbmlmZXN0KTsKICBpZiAoIW91dHB1dFdyaXRlciB8fCB0eXBlb2Ygb3V0cHV0V3JpdGVyLndyaXRlICE9PSAnZnVuY3Rpb24nKSB7CiAgICB0aHJvdyBuZXcgVHlwZUVycm9yKCdvdXRwdXRXcml0ZXIgaXMgcmVxdWlyZWQuJyk7CiAgfQoKICBjb25zdCBmaWxlcyA9IG5vcm1hbGl6ZVBhcnRNYXAocGFydEZpbGVzKTsKICBjb25zdCBpbnNwZWN0aW9uID0gaW5zcGVjdFBhcnRzKG1hbmlmZXN0LCBmaWxlcyk7CiAgaWYgKGluc3BlY3Rpb24ubWlzc2luZy5sZW5ndGggPiAwKSB7CiAgICB0aHJvdyBuZXcgU3BsaXRTZW5kRXJyb3IoCiAgICAgIGDlv4XopoHjgarjg5Hjg7zjg4TjgYzkuI3otrPjgZfjgabjgYTjgb7jgZnjgIJcbiR7aW5zcGVjdGlvbi5taXNzaW5nLm1hcCgobmFtZSkgPT4gYOODuyR7bmFtZX1gKS5qb2luKCdcbicpfWAsCiAgICAgICdNSVNTSU5HX1BBUlRTJywKICAgICAgaW5zcGVjdGlvbi5taXNzaW5nLAogICAgKTsKICB9CiAgaWYgKGluc3BlY3Rpb24uc2l6ZU1pc21hdGNoZXMubGVuZ3RoID4gMCkgewogICAgY29uc3QgbGluZXMgPSBpbnNwZWN0aW9uLnNpemVNaXNtYXRjaGVzLm1hcCgKICAgICAgKGl0ZW0pID0+IGDjg7ske2l0ZW0ubmFtZX06IOacn+W+hSAke2l0ZW0uZXhwZWN0ZWR9IGJ5dGVzIC8g5a6f6ZqbICR7aXRlbS5hY3R1YWx9IGJ5dGVzYCwKICAgICk7CiAgICB0aHJvdyBuZXcgSW50ZWdyaXR5RXJyb3IoYOODkeODvOODhOOBruOCteOCpOOCuuOBjOS4gOiHtOOBl+OBvuOBm+OCk+OAglxuJHtsaW5lcy5qb2luKCdcbicpfWAsIGluc3BlY3Rpb24uc2l6ZU1pc21hdGNoZXMpOwogIH0KCiAgY29uc3Qgb3ZlcmFsbEhhc2ggPSBuZXcgU2hhMjU2KCk7CiAgbGV0IHByb2Nlc3NlZEJ5dGVzID0gMDsKICBsZXQgY2xvc2VkID0gZmFsc2U7CiAgY29uc3QgcmVwb3J0ID0gY3JlYXRlUHJvZ3Jlc3NSZXBvcnRlcihvblByb2dyZXNzKTsKCiAgcmVwb3J0KHsKICAgIHBoYXNlOiAncmVzdG9yZScsCiAgICBwcm9jZXNzZWRCeXRlcywKICAgIHRvdGFsQnl0ZXM6IG1hbmlmZXN0Lm9yaWdpbmFsLnNpemUsCiAgICBwYXJ0SW5kZXg6IDAsCiAgICBwYXJ0Q291bnQ6IG1hbmlmZXN0LnBhcnRzLmxlbmd0aCwKICAgIGN1cnJlbnROYW1lOiAnJywKICB9LCB0cnVlKTsKCiAgdHJ5IHsKICAgIGZvciAoY29uc3QgcGFydCBvZiBtYW5pZmVzdC5wYXJ0cykgewogICAgICBhc3NlcnROb3RDYW5jZWxsZWQoc2hvdWxkQ2FuY2VsKTsKICAgICAgY29uc3QgZmlsZSA9IGZpbGVzLmdldChwYXJ0Lm5hbWUpOwogICAgICBjb25zdCBwYXJ0SGFzaCA9IG5ldyBTaGEyNTYoKTsKCiAgICAgIGZvciBhd2FpdCAoY29uc3QgYnl0ZXMgb2YgcmVhZEJsb2JSYW5nZShmaWxlLCB7CiAgICAgICAgc3RhcnQ6IDAsCiAgICAgICAgbGVuZ3RoOiBmaWxlLnNpemUsCiAgICAgICAgY2h1bmtTaXplLAogICAgICAgIHNob3VsZENhbmNlbCwKICAgICAgfSkpIHsKICAgICAgICBwYXJ0SGFzaC51cGRhdGUoYnl0ZXMpOwogICAgICAgIG92ZXJhbGxIYXNoLnVwZGF0ZShieXRlcyk7CiAgICAgICAgYXdhaXQgb3V0cHV0V3JpdGVyLndyaXRlKGJ5dGVzKTsKICAgICAgICBwcm9jZXNzZWRCeXRlcyArPSBieXRlcy5ieXRlTGVuZ3RoOwogICAgICAgIHJlcG9ydCh7CiAgICAgICAgICBwaGFzZTogJ3Jlc3RvcmUnLAogICAgICAgICAgcHJvY2Vzc2VkQnl0ZXMsCiAgICAgICAgICB0b3RhbEJ5dGVzOiBtYW5pZmVzdC5vcmlnaW5hbC5zaXplLAogICAgICAgICAgcGFydEluZGV4OiBwYXJ0LmluZGV4LAogICAgICAgICAgcGFydENvdW50OiBtYW5pZmVzdC5wYXJ0cy5sZW5ndGgsCiAgICAgICAgICBjdXJyZW50TmFtZTogcGFydC5uYW1lLAogICAgICAgIH0pOwogICAgICB9CgogICAgICBjb25zdCBhY3R1YWxQYXJ0SGFzaCA9IHBhcnRIYXNoLmhleCgpOwogICAgICBpZiAoYWN0dWFsUGFydEhhc2gudG9Mb3dlckNhc2UoKSAhPT0gcGFydC5zaGEyNTYudG9Mb3dlckNhc2UoKSkgewogICAgICAgIHRocm93IG5ldyBJbnRlZ3JpdHlFcnJvcigKICAgICAgICAgIGAke3BhcnQubmFtZX0g44GuU0hBLTI1NuOBjOS4gOiHtOOBl+OBvuOBm+OCk+OAguegtOaQjeOBvuOBn+OBr+WIpeODleOCoeOCpOODq+OBruWPr+iDveaAp+OBjOOBguOCiuOBvuOBmeOAgmAsCiAgICAgICAgICB7IG5hbWU6IHBhcnQubmFtZSwgZXhwZWN0ZWQ6IHBhcnQuc2hhMjU2LCBhY3R1YWw6IGFjdHVhbFBhcnRIYXNoIH0sCiAgICAgICAgKTsKICAgICAgfQogICAgfQoKICAgIGFzc2VydE5vdENhbmNlbGxlZChzaG91bGRDYW5jZWwpOwogICAgaWYgKHByb2Nlc3NlZEJ5dGVzICE9PSBtYW5pZmVzdC5vcmlnaW5hbC5zaXplKSB7CiAgICAgIHRocm93IG5ldyBJbnRlZ3JpdHlFcnJvcigKICAgICAgICBg5b6p5YWD44K144Kk44K644GM5LiA6Ie044GX44G+44Gb44KT44CC5pyf5b6FICR7bWFuaWZlc3Qub3JpZ2luYWwuc2l6ZX0gYnl0ZXMgLyDlrp/pmpsgJHtwcm9jZXNzZWRCeXRlc30gYnl0ZXNgLAogICAgICApOwogICAgfQoKICAgIGNvbnN0IGFjdHVhbE9yaWdpbmFsSGFzaCA9IG92ZXJhbGxIYXNoLmhleCgpOwogICAgaWYgKGFjdHVhbE9yaWdpbmFsSGFzaC50b0xvd2VyQ2FzZSgpICE9PSBtYW5pZmVzdC5vcmlnaW5hbC5zaGEyNTYudG9Mb3dlckNhc2UoKSkgewogICAgICB0aHJvdyBuZXcgSW50ZWdyaXR5RXJyb3IoCiAgICAgICAgJ+W+qeWFg+ODleOCoeOCpOODq+WFqOS9k+OBrlNIQS0yNTbjgYzlhYPjg5XjgqHjgqTjg6vjgajkuIDoh7TjgZfjgb7jgZvjgpPjgIInLAogICAgICAgIHsgZXhwZWN0ZWQ6IG1hbmlmZXN0Lm9yaWdpbmFsLnNoYTI1NiwgYWN0dWFsOiBhY3R1YWxPcmlnaW5hbEhhc2ggfSwKICAgICAgKTsKICAgIH0KCiAgICBhd2FpdCBvdXRwdXRXcml0ZXIuY2xvc2UoKTsKICAgIGNsb3NlZCA9IHRydWU7CiAgICByZXBvcnQoewogICAgICBwaGFzZTogJ3Jlc3RvcmUnLAogICAgICBwcm9jZXNzZWRCeXRlczogbWFuaWZlc3Qub3JpZ2luYWwuc2l6ZSwKICAgICAgdG90YWxCeXRlczogbWFuaWZlc3Qub3JpZ2luYWwuc2l6ZSwKICAgICAgcGFydEluZGV4OiBtYW5pZmVzdC5wYXJ0cy5sZW5ndGgsCiAgICAgIHBhcnRDb3VudDogbWFuaWZlc3QucGFydHMubGVuZ3RoLAogICAgICBjdXJyZW50TmFtZTogbWFuaWZlc3QucGFydHMuYXQoLTEpPy5uYW1lID8/ICcnLAogICAgfSwgdHJ1ZSk7CgogICAgcmV0dXJuIHsKICAgICAgc2l6ZTogcHJvY2Vzc2VkQnl0ZXMsCiAgICAgIHNoYTI1NjogYWN0dWFsT3JpZ2luYWxIYXNoLAogICAgICBvcmlnaW5hbE5hbWU6IG1hbmlmZXN0Lm9yaWdpbmFsLm5hbWUsCiAgICB9OwogIH0gY2F0Y2ggKGVycm9yKSB7CiAgICBpZiAoIWNsb3NlZCkgewogICAgICB0cnkgeyBhd2FpdCBvdXRwdXRXcml0ZXIuYWJvcnQ/LihlcnJvcik7IH0gY2F0Y2ggeyAvKiBLZWVwIG9yaWdpbmFsIGVycm9yLiAqLyB9CiAgICB9CiAgICB0aHJvdyBlcnJvcjsKICB9Cn0KCi8vID09PT09IHNwbGl0LWNvcmUuanMgPT09PT0KYXN5bmMgZnVuY3Rpb24gc3BsaXRCbG9iKHsKICBibG9iLAogIG9yaWdpbmFsTmFtZSwKICBtaW1lVHlwZSA9ICcnLAogIGxhc3RNb2RpZmllZCA9IDAsCiAgcGFydFNpemUsCiAgcGFja2FnZUlkID0gY3JlYXRlUGFja2FnZUlkKCksCiAgY2h1bmtTaXplID0gREVGQVVMVF9DSFVOS19TSVpFLAogIGNyZWF0ZVdyaXRlciwKICBvblByb2dyZXNzLAogIHNob3VsZENhbmNlbCwKfSkgewogIGlmICghKGJsb2IgaW5zdGFuY2VvZiBCbG9iKSkgdGhyb3cgbmV3IFR5cGVFcnJvcignYmxvYiBtdXN0IGJlIGEgQmxvYi4nKTsKICBpZiAodHlwZW9mIG9yaWdpbmFsTmFtZSAhPT0gJ3N0cmluZycgfHwgb3JpZ2luYWxOYW1lLmxlbmd0aCA9PT0gMCkgewogICAgdGhyb3cgbmV3IFNwbGl0U2VuZEVycm9yKCflhYPjg5XjgqHjgqTjg6vlkI3jgYzkuI3mraPjgafjgZnjgIInLCAnSU5WQUxJRF9GSUxFTkFNRScpOwogIH0KICBpZiAodHlwZW9mIGNyZWF0ZVdyaXRlciAhPT0gJ2Z1bmN0aW9uJykgdGhyb3cgbmV3IFR5cGVFcnJvcignY3JlYXRlV3JpdGVyIGlzIHJlcXVpcmVkLicpOwoKICBjb25zdCBwYXJ0Q291bnQgPSBjYWxjdWxhdGVQYXJ0Q291bnQoYmxvYi5zaXplLCBwYXJ0U2l6ZSk7CiAgaWYgKHBhcnRDb3VudCA+IE1BWF9QQVJUX0NPVU5UKSB7CiAgICB0aHJvdyBuZXcgU3BsaXRTZW5kRXJyb3IoCiAgICAgIGDliIblibLmlbDjgYzlpJrjgZnjgY7jgb7jgZnvvIgke3BhcnRDb3VudH3lgIvvvInjgILliIblibLjgrXjgqTjgrrjgpLlpKfjgY3jgY/jgZfjgabjgY/jgaDjgZXjgYTjgIJgLAogICAgICAnVE9PX01BTllfUEFSVFMnLAogICAgKTsKICB9CgogIGNvbnN0IG5hbWVzID0gY3JlYXRlUGFja2FnZU5hbWVzKG9yaWdpbmFsTmFtZSwgcGFja2FnZUlkLCBwYXJ0Q291bnQpOwogIGNvbnN0IG92ZXJhbGxIYXNoID0gbmV3IFNoYTI1NigpOwogIGNvbnN0IHBhcnRzID0gW107CiAgbGV0IHByb2Nlc3NlZEJ5dGVzID0gMDsKICBjb25zdCByZXBvcnQgPSBjcmVhdGVQcm9ncmVzc1JlcG9ydGVyKG9uUHJvZ3Jlc3MpOwoKICByZXBvcnQoewogICAgcGhhc2U6ICdzcGxpdCcsCiAgICBwcm9jZXNzZWRCeXRlcywKICAgIHRvdGFsQnl0ZXM6IGJsb2Iuc2l6ZSwKICAgIHBhcnRJbmRleDogMCwKICAgIHBhcnRDb3VudCwKICAgIGN1cnJlbnROYW1lOiAnJywKICB9LCB0cnVlKTsKCiAgZm9yIChsZXQgaW5kZXggPSAxOyBpbmRleCA8PSBwYXJ0Q291bnQ7IGluZGV4ICs9IDEpIHsKICAgIGFzc2VydE5vdENhbmNlbGxlZChzaG91bGRDYW5jZWwpOwogICAgY29uc3Qgb2Zmc2V0ID0gKGluZGV4IC0gMSkgKiBwYXJ0U2l6ZTsKICAgIGNvbnN0IHNpemUgPSBNYXRoLm1pbihwYXJ0U2l6ZSwgTWF0aC5tYXgoMCwgYmxvYi5zaXplIC0gb2Zmc2V0KSk7CiAgICBjb25zdCBwYXJ0TmFtZSA9IG5hbWVzLnBhcnROYW1lKGluZGV4KTsKICAgIGNvbnN0IHBhcnRIYXNoID0gbmV3IFNoYTI1NigpOwogICAgY29uc3Qgd3JpdGVyID0gYXdhaXQgY3JlYXRlV3JpdGVyKHBhcnROYW1lKTsKICAgIGxldCBjbG9zZWQgPSBmYWxzZTsKCiAgICB0cnkgewogICAgICBmb3IgYXdhaXQgKGNvbnN0IGJ5dGVzIG9mIHJlYWRCbG9iUmFuZ2UoYmxvYiwgewogICAgICAgIHN0YXJ0OiBvZmZzZXQsCiAgICAgICAgbGVuZ3RoOiBzaXplLAogICAgICAgIGNodW5rU2l6ZSwKICAgICAgICBzaG91bGRDYW5jZWwsCiAgICAgIH0pKSB7CiAgICAgICAgcGFydEhhc2gudXBkYXRlKGJ5dGVzKTsKICAgICAgICBvdmVyYWxsSGFzaC51cGRhdGUoYnl0ZXMpOwogICAgICAgIGF3YWl0IHdyaXRlci53cml0ZShieXRlcyk7CiAgICAgICAgcHJvY2Vzc2VkQnl0ZXMgKz0gYnl0ZXMuYnl0ZUxlbmd0aDsKICAgICAgICByZXBvcnQoewogICAgICAgICAgcGhhc2U6ICdzcGxpdCcsCiAgICAgICAgICBwcm9jZXNzZWRCeXRlcywKICAgICAgICAgIHRvdGFsQnl0ZXM6IGJsb2Iuc2l6ZSwKICAgICAgICAgIHBhcnRJbmRleDogaW5kZXgsCiAgICAgICAgICBwYXJ0Q291bnQsCiAgICAgICAgICBjdXJyZW50TmFtZTogcGFydE5hbWUsCiAgICAgICAgfSk7CiAgICAgIH0KICAgICAgYXNzZXJ0Tm90Q2FuY2VsbGVkKHNob3VsZENhbmNlbCk7CiAgICAgIGF3YWl0IHdyaXRlci5jbG9zZSgpOwogICAgICBjbG9zZWQgPSB0cnVlOwogICAgfSBjYXRjaCAoZXJyb3IpIHsKICAgICAgaWYgKCFjbG9zZWQpIHsKICAgICAgICB0cnkgeyBhd2FpdCB3cml0ZXIuYWJvcnQ/LihlcnJvcik7IH0gY2F0Y2ggeyAvKiBLZWVwIG9yaWdpbmFsIGVycm9yLiAqLyB9CiAgICAgIH0KICAgICAgdGhyb3cgZXJyb3I7CiAgICB9CgogICAgcGFydHMucHVzaCh7CiAgICAgIGluZGV4LAogICAgICBuYW1lOiBwYXJ0TmFtZSwKICAgICAgb2Zmc2V0LAogICAgICBzaXplLAogICAgICBzaGEyNTY6IHBhcnRIYXNoLmhleCgpLAogICAgfSk7CiAgfQoKICBhc3NlcnROb3RDYW5jZWxsZWQoc2hvdWxkQ2FuY2VsKTsKICBjb25zdCBtYW5pZmVzdCA9IGNyZWF0ZU1hbmlmZXN0KHsKICAgIHBhY2thZ2VJZCwKICAgIG9yaWdpbmFsTmFtZSwKICAgIG9yaWdpbmFsU2l6ZTogYmxvYi5zaXplLAogICAgbWltZVR5cGUsCiAgICBsYXN0TW9kaWZpZWQsCiAgICBvcmlnaW5hbFNoYTI1Njogb3ZlcmFsbEhhc2guaGV4KCksCiAgICBwYXJ0U2l6ZSwKICAgIHBhcnRzLAogIH0pOwoKICByZXBvcnQoewogICAgcGhhc2U6ICdzcGxpdCcsCiAgICBwcm9jZXNzZWRCeXRlczogYmxvYi5zaXplLAogICAgdG90YWxCeXRlczogYmxvYi5zaXplLAogICAgcGFydEluZGV4OiBwYXJ0Q291bnQsCiAgICBwYXJ0Q291bnQsCiAgICBjdXJyZW50TmFtZTogcGFydHMuYXQoLTEpPy5uYW1lID8/ICcnLAogIH0sIHRydWUpOwoKICByZXR1cm4geyBtYW5pZmVzdCwgbmFtZXMgfTsKfQoKLy8gPT09PT0gYnJvd3Nlci1vcGVyYXRpb25zLmpzID09PT09CmZ1bmN0aW9uIG1ha2VXcml0ZXIoZmlsZUhhbmRsZSkgewogIGxldCBzdHJlYW1Qcm9taXNlOwogIGNvbnN0IGdldFN0cmVhbSA9ICgpID0+IHsKICAgIHN0cmVhbVByb21pc2UgPz89IGZpbGVIYW5kbGUuY3JlYXRlV3JpdGFibGUoKTsKICAgIHJldHVybiBzdHJlYW1Qcm9taXNlOwogIH07CiAgcmV0dXJuIHsKICAgIGFzeW5jIHdyaXRlKGJ5dGVzKSB7CiAgICAgIGNvbnN0IHN0cmVhbSA9IGF3YWl0IGdldFN0cmVhbSgpOwogICAgICBhd2FpdCBzdHJlYW0ud3JpdGUoYnl0ZXMpOwogICAgfSwKICAgIGFzeW5jIGNsb3NlKCkgewogICAgICBjb25zdCBzdHJlYW0gPSBhd2FpdCBnZXRTdHJlYW0oKTsKICAgICAgYXdhaXQgc3RyZWFtLmNsb3NlKCk7CiAgICB9LAogICAgYXN5bmMgYWJvcnQocmVhc29uKSB7CiAgICAgIGlmICghc3RyZWFtUHJvbWlzZSkgcmV0dXJuOwogICAgICBjb25zdCBzdHJlYW0gPSBhd2FpdCBzdHJlYW1Qcm9taXNlOwogICAgICBhd2FpdCBzdHJlYW0uYWJvcnQocmVhc29uKTsKICAgIH0sCiAgfTsKfQoKYXN5bmMgZnVuY3Rpb24gZW50cnlFeGlzdHMoZGlyZWN0b3J5SGFuZGxlLCBuYW1lKSB7CiAgdHJ5IHsKICAgIGF3YWl0IGRpcmVjdG9yeUhhbmRsZS5nZXREaXJlY3RvcnlIYW5kbGUobmFtZSwgeyBjcmVhdGU6IGZhbHNlIH0pOwogICAgcmV0dXJuIHRydWU7CiAgfSBjYXRjaCAoZXJyb3IpIHsKICAgIGlmIChlcnJvcj8ubmFtZSA9PT0gJ05vdEZvdW5kRXJyb3InKSB7CiAgICAgIHRyeSB7CiAgICAgICAgYXdhaXQgZGlyZWN0b3J5SGFuZGxlLmdldEZpbGVIYW5kbGUobmFtZSwgeyBjcmVhdGU6IGZhbHNlIH0pOwogICAgICAgIHJldHVybiB0cnVlOwogICAgICB9IGNhdGNoIChmaWxlRXJyb3IpIHsKICAgICAgICBpZiAoZmlsZUVycm9yPy5uYW1lID09PSAnTm90Rm91bmRFcnJvcicpIHJldHVybiBmYWxzZTsKICAgICAgICBpZiAoZmlsZUVycm9yPy5uYW1lID09PSAnVHlwZU1pc21hdGNoRXJyb3InKSByZXR1cm4gdHJ1ZTsKICAgICAgICB0aHJvdyBmaWxlRXJyb3I7CiAgICAgIH0KICAgIH0KICAgIGlmIChlcnJvcj8ubmFtZSA9PT0gJ1R5cGVNaXNtYXRjaEVycm9yJykgcmV0dXJuIHRydWU7CiAgICB0aHJvdyBlcnJvcjsKICB9Cn0KCmFzeW5jIGZ1bmN0aW9uIGNyZWF0ZVVuaXF1ZURpcmVjdG9yeShwYXJlbnRIYW5kbGUsIHByZWZlcnJlZE5hbWUpIHsKICBmb3IgKGxldCBzdWZmaXggPSAxOyBzdWZmaXggPD0gOTk5OTsgc3VmZml4ICs9IDEpIHsKICAgIGNvbnN0IGNhbmRpZGF0ZSA9IHN1ZmZpeCA9PT0gMSA/IHByZWZlcnJlZE5hbWUgOiBgJHtwcmVmZXJyZWROYW1lfV8ke3N1ZmZpeH1gOwogICAgaWYgKCEoYXdhaXQgZW50cnlFeGlzdHMocGFyZW50SGFuZGxlLCBjYW5kaWRhdGUpKSkgewogICAgICBjb25zdCBoYW5kbGUgPSBhd2FpdCBwYXJlbnRIYW5kbGUuZ2V0RGlyZWN0b3J5SGFuZGxlKGNhbmRpZGF0ZSwgeyBjcmVhdGU6IHRydWUgfSk7CiAgICAgIHJldHVybiB7IGhhbmRsZSwgbmFtZTogY2FuZGlkYXRlIH07CiAgICB9CiAgfQogIHRocm93IG5ldyBTcGxpdFNlbmRFcnJvcign5Ye65Yqb44OV44Kp44Or44OA44O85ZCN44KS56K65L+d44Gn44GN44G+44Gb44KT44Gn44GX44Gf44CCJywgJ0RJUkVDVE9SWV9OQU1FX0VYSEFVU1RFRCcpOwp9Cgphc3luYyBmdW5jdGlvbiB3cml0ZVRleHRGaWxlKGRpcmVjdG9yeUhhbmRsZSwgbmFtZSwgY29udGVudCkgewogIGNvbnN0IGhhbmRsZSA9IGF3YWl0IGRpcmVjdG9yeUhhbmRsZS5nZXRGaWxlSGFuZGxlKG5hbWUsIHsgY3JlYXRlOiB0cnVlIH0pOwogIGNvbnN0IHdyaXRlciA9IG1ha2VXcml0ZXIoaGFuZGxlKTsKICB0cnkgewogICAgYXdhaXQgd3JpdGVyLndyaXRlKG5ldyBUZXh0RW5jb2RlcigpLmVuY29kZShjb250ZW50KSk7CiAgICBhd2FpdCB3cml0ZXIuY2xvc2UoKTsKICB9IGNhdGNoIChlcnJvcikgewogICAgdHJ5IHsgYXdhaXQgd3JpdGVyLmFib3J0KGVycm9yKTsgfSBjYXRjaCB7IC8qIEtlZXAgb3JpZ2luYWwgZXJyb3IuICovIH0KICAgIHRocm93IGVycm9yOwogIH0KfQoKZnVuY3Rpb24gYnVpbGRSZXN0b3JlSW5zdHJ1Y3Rpb25zKG1hbmlmZXN0LCByZXN0b3JlVXJsKSB7CiAgcmV0dXJuIGBTcGxpdFNlbmTjgafliIblibLjgZXjgozjgZ/jg5XjgqHjgqTjg6vjgafjgZnjgIJcclxuXHJcbmAKICAgICsgYOWFg+ODleOCoeOCpOODqzogJHttYW5pZmVzdC5vcmlnaW5hbC5uYW1lfVxyXG5gCiAgICArIGDlhYPjgrXjgqTjgro6ICR7bWFuaWZlc3Qub3JpZ2luYWwuc2l6ZX0gYnl0ZXNcclxuYAogICAgKyBg44OR44O844OE5pWwOiAke21hbmlmZXN0LnNwbGl0LnBhcnRDb3VudH1cclxuYAogICAgKyBg44OR44OD44Kx44O844K4SUQ6ICR7bWFuaWZlc3QucGFja2FnZUlkfVxyXG5cclxuYAogICAgKyBg5b6p5YWD5pa55rOVXHJcbmAKICAgICsgYDEuIOOBmeOBueOBpuOBriAucGFydCDjg5XjgqHjgqTjg6vjgaggLnNwbGl0c2VuZC5qc29uIOOCkuS/neWtmOOBl+OBvuOBmeOAglxyXG5gCiAgICArIGAyLiDmrKHjga7jg5rjg7zjgrjjgpJHb29nbGUgQ2hyb21l44Gn6ZaL44GN44G+44GZ44CCXHJcbmAKICAgICsgYCR7cmVzdG9yZVVybH1cclxuYAogICAgKyBgMy4g44CM5b6p5YWD44CN44KS6YG444Gz44CB44OV44Kh44Kk44Or5LiA5byP44KS44G+44Go44KB44Gm44OJ44Op44OD44Kw77yG44OJ44Ot44OD44OX44GX44G+44GZ44CCXHJcbmAKICAgICsgYDQuIOW+qeWFg+WFiOOCkumBuOOBs+OAgeOAjOaknOiovOOBl+OBpuW+qeWFg+OAjeOCkuWun+ihjOOBl+OBvuOBmeOAglxyXG5cclxuYAogICAgKyBg5rOo5oSPOiDliIblibLjga/mmpflj7fljJbjgafjga/jgYLjgorjgb7jgZvjgpPjgILjg5Hjg7zjg4TjgpLmjIHjgaTkurrjga/lhYPjg5XjgqHjgqTjg6vjgpLlvqnlhYPjgafjgY3jgb7jgZnjgIJcclxuYDsKfQoKYXN5bmMgZnVuY3Rpb24gc3BsaXRUb0RpcmVjdG9yeSh7CiAgZmlsZSwKICBwYXJ0U2l6ZSwKICBwYXJlbnREaXJlY3RvcnlIYW5kbGUsCiAgcmVzdG9yZVVybCwKICBjaHVua1NpemUgPSBERUZBVUxUX0NIVU5LX1NJWkUsCiAgb25Qcm9ncmVzcywKICBzaG91bGRDYW5jZWwsCn0pIHsKICBpZiAoIXBhcmVudERpcmVjdG9yeUhhbmRsZSkgdGhyb3cgbmV3IFR5cGVFcnJvcigncGFyZW50RGlyZWN0b3J5SGFuZGxlIGlzIHJlcXVpcmVkLicpOwogIGNvbnN0IHBhY2thZ2VJZCA9IGNyZWF0ZVBhY2thZ2VJZCgpOwogIGNvbnN0IHBhcnRDb3VudCA9IGNhbGN1bGF0ZVBhcnRDb3VudChmaWxlLnNpemUsIHBhcnRTaXplKTsKICBjb25zdCBwbGFubmVkTmFtZXMgPSBjcmVhdGVQYWNrYWdlTmFtZXMoZmlsZS5uYW1lLCBwYWNrYWdlSWQsIHBhcnRDb3VudCk7CiAgY29uc3QgcGFja2FnZURpcmVjdG9yeSA9IGF3YWl0IGNyZWF0ZVVuaXF1ZURpcmVjdG9yeShwYXJlbnREaXJlY3RvcnlIYW5kbGUsIHBsYW5uZWROYW1lcy5mb2xkZXJOYW1lKTsKCiAgdHJ5IHsKICAgIGNvbnN0IHJlc3VsdCA9IGF3YWl0IHNwbGl0QmxvYih7CiAgICAgIGJsb2I6IGZpbGUsCiAgICAgIG9yaWdpbmFsTmFtZTogZmlsZS5uYW1lLAogICAgICBtaW1lVHlwZTogZmlsZS50eXBlLAogICAgICBsYXN0TW9kaWZpZWQ6IGZpbGUubGFzdE1vZGlmaWVkLAogICAgICBwYXJ0U2l6ZSwKICAgICAgcGFja2FnZUlkLAogICAgICBjaHVua1NpemUsCiAgICAgIHNob3VsZENhbmNlbCwKICAgICAgb25Qcm9ncmVzcywKICAgICAgYXN5bmMgY3JlYXRlV3JpdGVyKG5hbWUpIHsKICAgICAgICBjb25zdCBoYW5kbGUgPSBhd2FpdCBwYWNrYWdlRGlyZWN0b3J5LmhhbmRsZS5nZXRGaWxlSGFuZGxlKG5hbWUsIHsgY3JlYXRlOiB0cnVlIH0pOwogICAgICAgIHJldHVybiBtYWtlV3JpdGVyKGhhbmRsZSk7CiAgICAgIH0sCiAgICB9KTsKCiAgICBpZiAoc2hvdWxkQ2FuY2VsPy4oKSkgdGhyb3cgbmV3IENhbmNlbGxlZEVycm9yKCk7CiAgICBhd2FpdCB3cml0ZVRleHRGaWxlKAogICAgICBwYWNrYWdlRGlyZWN0b3J5LmhhbmRsZSwKICAgICAgcmVzdWx0Lm5hbWVzLm1hbmlmZXN0TmFtZSwKICAgICAgc2VyaWFsaXplTWFuaWZlc3QocmVzdWx0Lm1hbmlmZXN0KSwKICAgICk7CiAgICBhd2FpdCB3cml0ZVRleHRGaWxlKAogICAgICBwYWNrYWdlRGlyZWN0b3J5LmhhbmRsZSwKICAgICAgcmVzdWx0Lm5hbWVzLmluc3RydWN0aW9uc05hbWUsCiAgICAgIGJ1aWxkUmVzdG9yZUluc3RydWN0aW9ucyhyZXN1bHQubWFuaWZlc3QsIHJlc3RvcmVVcmwpLAogICAgKTsKCiAgICByZXR1cm4gewogICAgICBtYW5pZmVzdDogcmVzdWx0Lm1hbmlmZXN0LAogICAgICBmb2xkZXJOYW1lOiBwYWNrYWdlRGlyZWN0b3J5Lm5hbWUsCiAgICAgIG1hbmlmZXN0TmFtZTogcmVzdWx0Lm5hbWVzLm1hbmlmZXN0TmFtZSwKICAgICAgaW5zdHJ1Y3Rpb25zTmFtZTogcmVzdWx0Lm5hbWVzLmluc3RydWN0aW9uc05hbWUsCiAgICB9OwogIH0gY2F0Y2ggKGVycm9yKSB7CiAgICB0cnkgewogICAgICBhd2FpdCBwYXJlbnREaXJlY3RvcnlIYW5kbGUucmVtb3ZlRW50cnkocGFja2FnZURpcmVjdG9yeS5uYW1lLCB7IHJlY3Vyc2l2ZTogdHJ1ZSB9KTsKICAgIH0gY2F0Y2ggKGNsZWFudXBFcnJvcikgewogICAgICBlcnJvci5jbGVhbnVwV2FybmluZyA9IGDkuI3lrozlhajjgarjg5Xjgqnjg6vjg4Djg7zjgIwke3BhY2thZ2VEaXJlY3RvcnkubmFtZX3jgI3jgpLoh6rli5XliYrpmaTjgafjgY3jgb7jgZvjgpPjgafjgZfjgZ/jgILmiYvli5XjgafliYrpmaTjgZfjgabjgY/jgaDjgZXjgYTjgIJgOwogICAgICBlcnJvci5jbGVhbnVwQ2F1c2UgPSBjbGVhbnVwRXJyb3I7CiAgICB9CiAgICB0aHJvdyBlcnJvcjsKICB9Cn0KCmFzeW5jIGZ1bmN0aW9uIHJlc3RvcmVUb0ZpbGUoewogIG1hbmlmZXN0LAogIHBhcnRGaWxlcywKICBvdXRwdXRGaWxlSGFuZGxlLAogIGNodW5rU2l6ZSA9IERFRkFVTFRfQ0hVTktfU0laRSwKICBvblByb2dyZXNzLAogIHNob3VsZENhbmNlbCwKfSkgewogIGlmICghb3V0cHV0RmlsZUhhbmRsZSkgdGhyb3cgbmV3IFR5cGVFcnJvcignb3V0cHV0RmlsZUhhbmRsZSBpcyByZXF1aXJlZC4nKTsKICBjb25zdCB3cml0ZXIgPSBtYWtlV3JpdGVyKG91dHB1dEZpbGVIYW5kbGUpOwogIHJldHVybiByZXN0b3JlUGFydHMoewogICAgbWFuaWZlc3QsCiAgICBwYXJ0RmlsZXMsCiAgICBvdXRwdXRXcml0ZXI6IHdyaXRlciwKICAgIGNodW5rU2l6ZSwKICAgIG9uUHJvZ3Jlc3MsCiAgICBzaG91bGRDYW5jZWwsCiAgfSk7Cn0KCmZ1bmN0aW9uIHN1Z2dlc3RlZFJlc3RvcmVkRmlsZW5hbWUob3JpZ2luYWxOYW1lKSB7CiAgcmV0dXJuIHNhbml0aXplRmlsZW5hbWUob3JpZ2luYWxOYW1lLCB7IGZhbGxiYWNrOiAncmVzdG9yZWQtZmlsZScsIG1heExlbmd0aDogMTgwIH0pOwp9CgovLyA9PT09PSB3b3JrZXIuanMgPT09PT0KY29uc3QgY2FuY2VsbGVkSm9icyA9IG5ldyBTZXQoKTsKY29uc3QgYWN0aXZlSm9icyA9IG5ldyBTZXQoKTsKCmZ1bmN0aW9uIHNlcmlhbGl6ZUVycm9yKGVycm9yKSB7CiAgcmV0dXJuIHsKICAgIG5hbWU6IGVycm9yPy5uYW1lID8/ICdFcnJvcicsCiAgICBtZXNzYWdlOiBlcnJvcj8ubWVzc2FnZSA/PyBTdHJpbmcoZXJyb3IpLAogICAgY29kZTogZXJyb3I/LmNvZGUgPz8gJ1VOS05PV04nLAogICAgZGV0YWlsczogZXJyb3I/LmRldGFpbHMsCiAgICBjbGVhbnVwV2FybmluZzogZXJyb3I/LmNsZWFudXBXYXJuaW5nLAogICAgc3RhY2s6IGVycm9yPy5zdGFjaywKICB9Owp9CgpzZWxmLmFkZEV2ZW50TGlzdGVuZXIoJ21lc3NhZ2UnLCAoZXZlbnQpID0+IHsKICBjb25zdCBtZXNzYWdlID0gZXZlbnQuZGF0YTsKICBpZiAoIW1lc3NhZ2UgfHwgdHlwZW9mIG1lc3NhZ2UgIT09ICdvYmplY3QnKSByZXR1cm47CgogIGlmIChtZXNzYWdlLnR5cGUgPT09ICdjYW5jZWwnKSB7CiAgICBjYW5jZWxsZWRKb2JzLmFkZChtZXNzYWdlLmpvYklkKTsKICAgIHJldHVybjsKICB9CgogIGlmICghWydzcGxpdCcsICdyZXN0b3JlJ10uaW5jbHVkZXMobWVzc2FnZS50eXBlKSB8fCAhbWVzc2FnZS5qb2JJZCkgcmV0dXJuOwogIGlmIChhY3RpdmVKb2JzLmhhcyhtZXNzYWdlLmpvYklkKSkgcmV0dXJuOwoKICBhY3RpdmVKb2JzLmFkZChtZXNzYWdlLmpvYklkKTsKICBjb25zdCBzaG91bGRDYW5jZWwgPSAoKSA9PiBjYW5jZWxsZWRKb2JzLmhhcyhtZXNzYWdlLmpvYklkKTsKICBjb25zdCBvblByb2dyZXNzID0gKHByb2dyZXNzKSA9PiB7CiAgICBzZWxmLnBvc3RNZXNzYWdlKHsgdHlwZTogJ3Byb2dyZXNzJywgam9iSWQ6IG1lc3NhZ2Uuam9iSWQsIHByb2dyZXNzIH0pOwogIH07CgogIGNvbnN0IG9wZXJhdGlvbiA9IG1lc3NhZ2UudHlwZSA9PT0gJ3NwbGl0JwogICAgPyBzcGxpdFRvRGlyZWN0b3J5KHsgLi4ubWVzc2FnZS5wYXlsb2FkLCBvblByb2dyZXNzLCBzaG91bGRDYW5jZWwgfSkKICAgIDogcmVzdG9yZVRvRmlsZSh7IC4uLm1lc3NhZ2UucGF5bG9hZCwgb25Qcm9ncmVzcywgc2hvdWxkQ2FuY2VsIH0pOwoKICBQcm9taXNlLnJlc29sdmUob3BlcmF0aW9uKQogICAgLnRoZW4oKHJlc3VsdCkgPT4gewogICAgICBzZWxmLnBvc3RNZXNzYWdlKHsgdHlwZTogJ2NvbXBsZXRlZCcsIGpvYklkOiBtZXNzYWdlLmpvYklkLCByZXN1bHQgfSk7CiAgICB9KQogICAgLmNhdGNoKChlcnJvcikgPT4gewogICAgICBzZWxmLnBvc3RNZXNzYWdlKHsgdHlwZTogJ2Vycm9yJywgam9iSWQ6IG1lc3NhZ2Uuam9iSWQsIGVycm9yOiBzZXJpYWxpemVFcnJvcihlcnJvcikgfSk7CiAgICB9KQogICAgLmZpbmFsbHkoKCkgPT4gewogICAgICBhY3RpdmVKb2JzLmRlbGV0ZShtZXNzYWdlLmpvYklkKTsKICAgICAgY2FuY2VsbGVkSm9icy5kZWxldGUobWVzc2FnZS5qb2JJZCk7CiAgICB9KTsKfSk7Cg==';
+let splitSendWorkerUrl = null;
+function getSplitSendWorkerUrl() {
+  if (splitSendWorkerUrl) return splitSendWorkerUrl;
+  const binary = atob(SPLITSEND_WORKER_BASE64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+  splitSendWorkerUrl = URL.createObjectURL(new Blob([bytes], { type: 'text/javascript;charset=utf-8' }));
+  return splitSendWorkerUrl;
+}
+window.addEventListener('pagehide', () => {
+  if (splitSendWorkerUrl) URL.revokeObjectURL(splitSendWorkerUrl);
+}, { once: true });
+
+// ===== operation-runner.js =====
+class OperationRunner {
+  constructor() {
+    this.pending = new Map();
+    this.worker = null;
+    this.#createWorker();
+  }
+
+  #createWorker() {
+    try {
+      this.worker = new Worker(getSplitSendWorkerUrl(), { name: 'SplitSendWorker' });
+      this.worker.addEventListener('message', (event) => this.#handleMessage(event.data));
+      this.worker.addEventListener('error', (event) => {
+        event.preventDefault?.();
+        this.#handleWorkerFailure(event.error ?? new Error(event.message));
+      });
+    } catch {
+      this.worker = null;
+    }
+  }
+
+  start(type, payload, { onProgress } = {}) {
+    const jobId = globalThis.crypto.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
+    let directCancelled = false;
+    let settled = false;
+
+    const cancel = () => {
+      if (settled) return;
+      directCancelled = true;
+      if (this.worker && this.pending.has(jobId)) {
+        this.worker.postMessage({ type: 'cancel', jobId });
+      }
+    };
+
+    if (this.worker) {
+      let resolveWorker;
+      let rejectWorker;
+      const workerPromise = new Promise((resolve, reject) => {
+        resolveWorker = resolve;
+        rejectWorker = reject;
+      });
+      this.pending.set(jobId, {
+        resolve: (value) => { settled = true; resolveWorker(value); },
+        reject: (error) => { settled = true; rejectWorker(error); },
+        onProgress,
+      });
+
+      try {
+        this.worker.postMessage({ type, jobId, payload });
+        return { jobId, promise: workerPromise, cancel, mode: 'worker' };
+      } catch {
+        this.pending.delete(jobId);
+        this.worker.terminate();
+        this.worker = null;
+      }
+    }
+
+    const operation = type === 'split' ? splitToDirectory : restoreToFile;
+    const promise = operation({
+      ...payload,
+      onProgress,
+      shouldCancel: () => directCancelled,
+    }).finally(() => { settled = true; });
+    return { jobId, promise, cancel, mode: 'main-thread' };
+  }
+
+  #handleMessage(message) {
+    const pending = this.pending.get(message?.jobId);
+    if (!pending) return;
+    if (message.type === 'progress') {
+      pending.onProgress?.(message.progress);
+      return;
+    }
+
+    this.pending.delete(message.jobId);
+    if (message.type === 'completed') {
+      pending.resolve(message.result);
+    } else if (message.type === 'error') {
+      const error = new Error(message.error?.message ?? '処理に失敗しました。');
+      Object.assign(error, message.error ?? {});
+      pending.reject(error);
+    }
+  }
+
+  #handleWorkerFailure(error) {
+    for (const pending of this.pending.values()) pending.reject(error);
+    this.pending.clear();
+    this.worker?.terminate();
+    this.worker = null;
+  }
+}
+
+// ===== app.js =====
+const $ = (selector) => document.querySelector(selector);
+const runner = new OperationRunner();
+
+const state = {
+  splitFile: null,
+  splitOperation: null,
+  restoreDiscovery: null,
+  selectedPackageKey: null,
+  restoreOperation: null,
+};
+
+function restorePageUrl() {
+  const url = new URL(window.location.href);
+  url.hash = 'restore';
+  return url.toString();
+}
+
+function setTab(tab) {
+  const isSplit = tab !== 'restore';
+  $('#tab-split').setAttribute('aria-selected', String(isSplit));
+  $('#tab-restore').setAttribute('aria-selected', String(!isSplit));
+  $('#panel-split').hidden = !isSplit;
+  $('#panel-restore').hidden = isSplit;
+  history.replaceState(null, '', isSplit ? '#split' : '#restore');
+}
+
+function configurePresets() {
+  const select = $('#split-preset');
+  for (const preset of SIZE_PRESETS) {
+    const option = document.createElement('option');
+    option.value = String(preset.value);
+    option.textContent = preset.label;
+    select.append(option);
+  }
+  const custom = document.createElement('option');
+  custom.value = 'custom';
+  custom.textContent = 'カスタム';
+  select.append(custom);
+  select.value = String(DEFAULT_PART_SIZE);
+}
+
+function currentPartSize() {
+  const preset = $('#split-preset').value;
+  if (preset !== 'custom') return Number(preset);
+  const value = Number($('#custom-size').value);
+  const multiplier = $('#custom-unit').value === 'MiB' ? 1024 * 1024 : 1_000_000;
+  const bytes = Math.floor(value * multiplier);
+  return Number.isSafeInteger(bytes) && bytes > 0 ? bytes : NaN;
+}
+
+function showMessage(element, type, message) {
+  element.hidden = !message;
+  element.className = `message ${type}`;
+  element.textContent = message ?? '';
+}
+
+function updateSplitPlan() {
+  const file = state.splitFile;
+  const size = currentPartSize();
+  const fileCard = $('#split-file-card');
+  const startButton = $('#split-start');
+
+  $('#custom-size-wrap').hidden = $('#split-preset').value !== 'custom';
+
+  if (!file) {
+    fileCard.hidden = true;
+    $('#split-plan').hidden = true;
+    startButton.disabled = true;
+    return;
+  }
+
+  fileCard.hidden = false;
+  $('#split-file-name').textContent = file.name;
+  $('#split-file-size').textContent = formatBytes(file.size);
+  $('#split-file-type').textContent = file.type || '不明な形式（問題なく分割できます）';
+
+  if (!Number.isSafeInteger(size) || size <= 0) {
+    $('#split-plan').hidden = true;
+    startButton.disabled = true;
+    showMessage($('#split-message'), 'error', '分割サイズを正しく入力してください。');
+    return;
+  }
+
+  const count = calculatePartCount(file.size, size);
+  const lastSize = file.size === 0 ? 0 : file.size - size * (count - 1);
+  $('#split-plan').hidden = false;
+  $('#plan-part-size').textContent = formatBytes(size);
+  $('#plan-part-count').textContent = `${count} 個`;
+  $('#plan-last-size').textContent = formatBytes(lastSize);
+  startButton.disabled = count > MAX_PART_COUNT || !supportsRequiredApis();
+
+  if (count > MAX_PART_COUNT) {
+    showMessage($('#split-message'), 'error', `分割数が${count}個になります。分割サイズを大きくしてください。`);
+  } else if (count > 100) {
+    showMessage($('#split-message'), 'warning', `分割数が${count}個になります。送信や管理が大変になる可能性があります。`);
+  } else {
+    showMessage($('#split-message'), 'info', '出力先には専用サブフォルダーを自動作成します。');
+  }
+}
+
+function setSplitFile(file) {
+  state.splitFile = file ?? null;
+  showMessage($('#split-result'), 'success', '');
+  updateSplitPlan();
+}
+
+function supportsRequiredApis() {
+  return window.isSecureContext
+    && typeof window.showDirectoryPicker === 'function'
+    && typeof window.showSaveFilePicker === 'function';
+}
+
+function updateSupportBanner() {
+  const banner = $('#support-banner');
+  if (supportsRequiredApis()) {
+    banner.hidden = true;
+    return;
+  }
+  banner.hidden = false;
+  banner.innerHTML = '';
+  const strong = document.createElement('strong');
+  strong.textContent = 'この環境では完全なファイル保存機能を利用できません。';
+  const detail = document.createElement('span');
+  detail.textContent = window.isSecureContext
+    ? ' Windows版Google ChromeまたはMicrosoft Edgeで開いてください。'
+    : ' HTTPSのGitHub Pagesまたはlocalhostから開いてください。';
+  banner.append(strong, detail);
+}
+
+function setProgress(section, progress) {
+  section.hidden = false;
+  const percent = formatPercent(progress.processedBytes, progress.totalBytes);
+  section.querySelector('[data-progress-bar]').style.width = `${percent.toFixed(1)}%`;
+  section.querySelector('[data-progress-percent]').textContent = `${percent.toFixed(1)}%`;
+  section.querySelector('[data-progress-bytes]').textContent = `${formatBytes(progress.processedBytes)} / ${formatBytes(progress.totalBytes)}`;
+  section.querySelector('[data-progress-part]').textContent = progress.partCount
+    ? `パーツ ${Math.max(1, progress.partIndex)} / ${progress.partCount}`
+    : '';
+  section.querySelector('[data-progress-name]').textContent = progress.currentName || '準備中';
+}
+
+function resetProgress(section) {
+  section.hidden = true;
+  section.querySelector('[data-progress-bar]').style.width = '0%';
+}
+
+async function startSplit() {
+  if (!state.splitFile || state.splitOperation) return;
+  const partSize = currentPartSize();
+  if (!Number.isSafeInteger(partSize) || partSize <= 0) return;
+
+  let parentDirectoryHandle;
+  try {
+    parentDirectoryHandle = await window.showDirectoryPicker({
+      id: 'splitsend-output',
+      mode: 'readwrite',
+      startIn: 'downloads',
+    });
+  } catch (error) {
+    if (error?.name !== 'AbortError') showMessage($('#split-message'), 'error', error.message);
+    return;
+  }
+
+  const progressSection = $('#split-progress');
+  resetProgress(progressSection);
+  showMessage($('#split-result'), 'success', '');
+  showMessage($('#split-message'), 'info', '分割処理を開始しました。ブラウザを閉じないでください。');
+  $('#split-start').disabled = true;
+  $('#split-cancel').hidden = false;
+
+  const operation = runner.start('split', {
+    file: state.splitFile,
+    partSize,
+    parentDirectoryHandle,
+    restoreUrl: restorePageUrl(),
+  }, {
+    onProgress: (progress) => setProgress(progressSection, progress),
+  });
+  state.splitOperation = operation;
+
+  try {
+    const result = await operation.promise;
+    showMessage(
+      $('#split-result'),
+      'success',
+      `分割が完了しました。保存フォルダー: ${result.folderName}\nパーツ: ${result.manifest.parts.length}個\nSHA-256: ${result.manifest.original.sha256}`,
+    );
+    showMessage($('#split-message'), 'info', 'フォルダー内のpartファイルとsplitsend.jsonを送信してください。復元方法.txtは説明用です。');
+  } catch (error) {
+    const extra = error.cleanupWarning ? `\n${error.cleanupWarning}` : '';
+    showMessage($('#split-result'), error.code === 'CANCELLED' ? 'warning' : 'error', `${error.message}${extra}`);
+  } finally {
+    state.splitOperation = null;
+    $('#split-cancel').hidden = true;
+    updateSplitPlan();
+  }
+}
+
+function packageStatusText(pkg) {
+  if (pkg.error) return `復元情報エラー: ${pkg.error}`;
+  const lines = [];
+  if (pkg.duplicates?.length) lines.push(`同名パーツ重複: ${pkg.duplicates.join(', ')}`);
+  if (pkg.inspection.missing.length) lines.push(`不足: ${pkg.inspection.missing.join(', ')}`);
+  if (pkg.inspection.sizeMismatches.length) {
+    lines.push(`サイズ不一致: ${pkg.inspection.sizeMismatches.map((item) => item.name).join(', ')}`);
+  }
+  return lines.length ? lines.join('\n') : '必要なファイルがそろっています。復元時にSHA-256を検証します。';
+}
+
+function selectedPackage() {
+  return state.restoreDiscovery?.packages.find((pkg) => pkg.key === state.selectedPackageKey) ?? null;
+}
+
+function renderPackages() {
+  const container = $('#restore-packages');
+  container.innerHTML = '';
+  const discovery = state.restoreDiscovery;
+
+  if (!discovery || discovery.packages.length === 0) {
+    $('#restore-summary').hidden = true;
+    $('#restore-start').disabled = true;
+    showMessage(
+      $('#restore-message'),
+      'warning',
+      discovery ? '.splitsend.json が見つかりません。復元情報とすべてのpartファイルを選択してください。' : '',
+    );
+    return;
+  }
+
+  $('#restore-summary').hidden = false;
+  showMessage($('#restore-message'), 'info', `${discovery.files.length}個のファイルから${discovery.packages.length}件のパッケージを検出しました。`);
+
+  for (const pkg of discovery.packages) {
+    const label = document.createElement('label');
+    label.className = `package-card ${pkg.error || !pkg.inspection?.ready ? 'invalid' : 'ready'}`;
+
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = 'restore-package';
+    radio.value = pkg.key;
+    radio.checked = pkg.key === state.selectedPackageKey;
+    radio.disabled = Boolean(pkg.error);
+    radio.addEventListener('change', () => {
+      state.selectedPackageKey = pkg.key;
+      renderPackages();
+    });
+
+    const body = document.createElement('span');
+    body.className = 'package-card-body';
+    const title = document.createElement('strong');
+    title.textContent = pkg.manifest?.original?.name ?? pkg.manifestFile.name;
+    const meta = document.createElement('span');
+    meta.className = 'muted';
+    meta.textContent = pkg.manifest
+      ? `${formatBytes(pkg.manifest.original.size)}・${pkg.manifest.parts.length}パーツ・ID ${pkg.manifest.packageId}`
+      : '復元情報を読み取れません';
+    const status = document.createElement('span');
+    status.className = 'package-status';
+    status.textContent = packageStatusText(pkg);
+    body.append(title, meta, status);
+    label.append(radio, body);
+    container.append(label);
+  }
+
+  const pkg = selectedPackage();
+  $('#restore-start').disabled = !pkg?.inspection?.ready || pkg.duplicates?.length > 0 || !supportsRequiredApis();
+}
+
+async function setRestoreFiles(files) {
+  showMessage($('#restore-result'), 'success', '');
+  state.restoreDiscovery = await discoverPackages(files);
+  const firstReady = state.restoreDiscovery.packages.find((pkg) => pkg.inspection?.ready && !pkg.duplicates?.length);
+  state.selectedPackageKey = firstReady?.key ?? state.restoreDiscovery.packages[0]?.key ?? null;
+  renderPackages();
+}
+
+async function startRestore() {
+  const pkg = selectedPackage();
+  if (!pkg?.inspection?.ready || state.restoreOperation) return;
+
+  let outputFileHandle;
+  try {
+    outputFileHandle = await window.showSaveFilePicker({
+      id: 'splitsend-restore',
+      startIn: 'downloads',
+      suggestedName: suggestedRestoredFilename(pkg.manifest.original.name),
+    });
+  } catch (error) {
+    if (error?.name !== 'AbortError') showMessage($('#restore-message'), 'error', error.message);
+    return;
+  }
+
+  const progressSection = $('#restore-progress');
+  resetProgress(progressSection);
+  showMessage($('#restore-result'), 'success', '');
+  showMessage($('#restore-message'), 'info', 'パーツを検証しながら復元しています。完了までブラウザを閉じないでください。');
+  $('#restore-start').disabled = true;
+  $('#restore-cancel').hidden = false;
+
+  const operation = runner.start('restore', {
+    manifest: pkg.manifest,
+    partFiles: pkg.partFiles,
+    outputFileHandle,
+  }, {
+    onProgress: (progress) => setProgress(progressSection, progress),
+  });
+  state.restoreOperation = operation;
+
+  try {
+    const result = await operation.promise;
+    showMessage(
+      $('#restore-result'),
+      'success',
+      `復元が完了しました。\nファイル: ${result.originalName}\nサイズ: ${formatBytes(result.size)}\nSHA-256: ${result.sha256}\n元ファイルと完全に一致しています。`,
+    );
+    showMessage($('#restore-message'), 'info', '保存したファイルを通常どおり開けます。');
+  } catch (error) {
+    showMessage($('#restore-result'), error.code === 'CANCELLED' ? 'warning' : 'error', error.message);
+  } finally {
+    state.restoreOperation = null;
+    $('#restore-cancel').hidden = true;
+    renderPackages();
+  }
+}
+
+function wireDropZone(zone, input, callback) {
+  const activate = () => input.click();
+  zone.addEventListener('click', activate);
+  zone.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      activate();
+    }
+  });
+  for (const type of ['dragenter', 'dragover']) {
+    zone.addEventListener(type, (event) => {
+      event.preventDefault();
+      zone.classList.add('dragging');
+    });
+  }
+  for (const type of ['dragleave', 'drop']) {
+    zone.addEventListener(type, (event) => {
+      event.preventDefault();
+      zone.classList.remove('dragging');
+    });
+  }
+  zone.addEventListener('drop', (event) => callback(event.dataTransfer.files));
+  input.addEventListener('change', () => callback(input.files));
+}
+
+function initialize() {
+  configurePresets();
+  updateSupportBanner();
+
+  $('#tab-split').addEventListener('click', () => setTab('split'));
+  $('#tab-restore').addEventListener('click', () => setTab('restore'));
+  window.addEventListener('hashchange', () => setTab(location.hash === '#restore' ? 'restore' : 'split'));
+
+  wireDropZone($('#split-drop'), $('#split-input'), (files) => setSplitFile(files?.[0]));
+  wireDropZone($('#restore-drop'), $('#restore-input'), (files) => setRestoreFiles(files));
+
+  $('#split-preset').addEventListener('change', updateSplitPlan);
+  $('#custom-size').addEventListener('input', updateSplitPlan);
+  $('#custom-unit').addEventListener('change', updateSplitPlan);
+  $('#split-start').addEventListener('click', startSplit);
+  $('#split-cancel').addEventListener('click', () => state.splitOperation?.cancel());
+  $('#restore-start').addEventListener('click', startRestore);
+  $('#restore-cancel').addEventListener('click', () => state.restoreOperation?.cancel());
+  $('#restore-clear').addEventListener('click', () => {
+    state.restoreDiscovery = null;
+    state.selectedPackageKey = null;
+    $('#restore-input').value = '';
+    renderPackages();
+    showMessage($('#restore-result'), 'success', '');
+  });
+
+  setTab(location.hash === '#restore' ? 'restore' : 'split');
+  updateSplitPlan();
+  renderPackages();
+}
+
+initialize();
+
+  </script>
+</body>
+</html>
