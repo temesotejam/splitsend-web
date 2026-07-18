@@ -1,0 +1,55 @@
+{
+  "format": "splitsend",
+  "version": 1,
+  "packageId": "D3E02026",
+  "createdAt": "2026-07-18T14:58:31.210Z",
+  "createdBy": {
+    "application": "SplitSend",
+    "version": "1.0.0"
+  },
+  "integrity": {
+    "algorithm": "SHA-256"
+  },
+  "original": {
+    "name": "demo-source.txt",
+    "size": 3101,
+    "mimeType": "text/plain",
+    "lastModified": 0,
+    "sha256": "bfe4eab32f8f17ca4d05a85673d5b3f820521f42ae72258983e4b9743ff537a2"
+  },
+  "split": {
+    "method": "contiguous-bytes",
+    "partSize": 1000,
+    "partCount": 4
+  },
+  "parts": [
+    {
+      "index": 1,
+      "name": "demo-source_D3E02026.part001",
+      "offset": 0,
+      "size": 1000,
+      "sha256": "db42923564742ac1c87f89e45a4697c635221f672d9e082d85174b658b03d9f4"
+    },
+    {
+      "index": 2,
+      "name": "demo-source_D3E02026.part002",
+      "offset": 1000,
+      "size": 1000,
+      "sha256": "38fe6d71d7db244ab3a2f6487b8e2642f59a3312b3a02325fd2797cbf1175dcf"
+    },
+    {
+      "index": 3,
+      "name": "demo-source_D3E02026.part003",
+      "offset": 2000,
+      "size": 1000,
+      "sha256": "79b3049e3976b149b2f5c8e4ce78820310fc80f158c87a9d2146ad9108b1073d"
+    },
+    {
+      "index": 4,
+      "name": "demo-source_D3E02026.part004",
+      "offset": 3000,
+      "size": 101,
+      "sha256": "12c3ccffcd3774ad64b66e4221f71f78296be0c1fb96d75e16c18160cf6e62a6"
+    }
+  ]
+}

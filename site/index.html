@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="referrer" content="no-referrer">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; worker-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>SplitSend — ブラウザだけでファイルを分割・復元</title>
+  <meta name="description" content="任意形式の大きなファイルを指定サイズに分割し、Web上で完全復元するローカル処理ツールです。">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="shell header-inner">
+      <div>
+        <p class="eyebrow">LOCAL FILE TOOL</p>
+        <h1>SplitSend</h1>
+        <p class="lead">大きなファイルを、送信できるサイズへ安全に分割・復元します。</p>
+      </div>
+      <div class="privacy-badge" aria-label="プライバシー情報">
+        <span class="privacy-dot" aria-hidden="true"></span>
+        外部送信なし
+      </div>
+    </div>
+  </header>
+
+  <main class="shell">
+    <section class="notice privacy-notice" aria-label="重要な説明">
+      <strong>ファイルはこのブラウザ内だけで処理されます。</strong>
+      <span>サーバーへのアップロード、アナリティクス、広告、外部通信はありません。</span>
+    </section>
+
+    <section id="support-banner" class="notice warning-notice" hidden aria-live="polite"></section>
+
+    <nav class="tabs" aria-label="機能の切り替え">
+      <button id="tab-split" class="tab" type="button" role="tab" aria-controls="panel-split">分割</button>
+      <button id="tab-restore" class="tab" type="button" role="tab" aria-controls="panel-restore">復元</button>
+    </nav>
+
+    <section id="panel-split" class="panel" role="tabpanel" aria-labelledby="tab-split">
+      <div class="section-heading">
+        <div>
+          <p class="step-label">STEP 1</p>
+          <h2>ファイルを分割する</h2>
+        </div>
+        <p>任意形式の単一ファイルに対応します。内容は変更せず、バイト単位で分割します。</p>
+      </div>
+
+      <input id="split-input" class="visually-hidden" type="file">
+      <div id="split-drop" class="drop-zone" role="button" tabindex="0" aria-label="分割するファイルを選択">
+        <span class="drop-icon" aria-hidden="true">＋</span>
+        <strong>ファイルをここへドロップ</strong>
+        <span>またはクリックして選択</span>
+      </div>
+
+      <article id="split-file-card" class="file-card" hidden>
+        <div class="file-icon" aria-hidden="true">FILE</div>
+        <div class="file-details">
+          <strong id="split-file-name"></strong>
+          <span id="split-file-size" class="muted"></span>
+          <span id="split-file-type" class="muted"></span>
+        </div>
+      </article>
+
+      <div class="control-grid">
+        <label class="field">
+          <span>1パーツの最大サイズ</span>
+          <select id="split-preset"></select>
+        </label>
+
+        <div id="custom-size-wrap" class="field" hidden>
+          <span>カスタムサイズ</span>
+          <div class="inline-controls">
+            <input id="custom-size" type="number" min="0.001" step="0.001" value="9.5" inputmode="decimal" aria-label="カスタム分割サイズ">
+            <select id="custom-unit" aria-label="サイズ単位">
+              <option value="MB">MB</option>
+              <option value="MiB">MiB</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <section id="split-plan" class="summary-grid" hidden aria-label="分割予定">
+        <div class="summary-item">
+          <span>最大パーツサイズ</span>
+          <strong id="plan-part-size"></strong>
+        </div>
+        <div class="summary-item">
+          <span>生成パーツ数</span>
+          <strong id="plan-part-count"></strong>
+        </div>
+        <div class="summary-item">
+          <span>最後のパーツ</span>
+          <strong id="plan-last-size"></strong>
+        </div>
+      </section>
+
+      <div id="split-message" class="message info" hidden aria-live="polite"></div>
+
+      <div class="action-row">
+        <button id="split-start" class="primary-button" type="button" disabled>保存先を選択して分割</button>
+        <button id="split-cancel" class="secondary-button danger" type="button" hidden>キャンセル</button>
+      </div>
+
+      <section id="split-progress" class="progress-panel" hidden aria-live="polite">
+        <div class="progress-header">
+          <strong data-progress-part>準備中</strong>
+          <span data-progress-percent>0%</span>
+        </div>
+        <div class="progress-track" aria-hidden="true"><div data-progress-bar class="progress-bar"></div></div>
+        <div class="progress-meta">
+          <span data-progress-bytes>0 B</span>
+          <span data-progress-name>準備中</span>
+        </div>
+      </section>
+
+      <div id="split-result" class="message success result-message" hidden aria-live="polite"></div>
+
+      <details class="details-box">
+        <summary>生成されるフォルダーについて</summary>
+        <p>選択した親フォルダー内に、<code>SplitSend_ファイル名_ID</code>という専用サブフォルダーを作成します。分割ファイルがダウンロードフォルダーへ散らばることはありません。</p>
+        <pre><code>SplitSend_example_A1B2C3D4/
+├─ example_A1B2C3D4.part001
+├─ example_A1B2C3D4.part002
+├─ example_A1B2C3D4.splitsend.json
+└─ 復元方法.txt</code></pre>
+      </details>
+    </section>
+
+    <section id="panel-restore" class="panel" role="tabpanel" aria-labelledby="tab-restore" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="step-label">STEP 2</p>
+          <h2>元ファイルへ復元する</h2>
+        </div>
+        <p>すべてのpartファイルとsplitsend.jsonを選択すると、不足と破損を検証しながら復元します。</p>
+      </div>
+
+      <input id="restore-input" class="visually-hidden" type="file" multiple>
+      <div id="restore-drop" class="drop-zone" role="button" tabindex="0" aria-label="復元する分割ファイル一式を選択">
+        <span class="drop-icon restore" aria-hidden="true">↺</span>
+        <strong>分割ファイル一式をここへドロップ</strong>
+        <span>.partファイルと.splitsend.jsonをまとめて選択</span>
+      </div>
+
+      <section id="restore-summary" hidden>
+        <div class="subheading-row">
+          <h3>検出したパッケージ</h3>
+          <button id="restore-clear" class="text-button" type="button">選択をクリア</button>
+        </div>
+        <div id="restore-packages" class="package-list"></div>
+      </section>
+
+      <div id="restore-message" class="message info" hidden aria-live="polite"></div>
+
+      <div class="action-row">
+        <button id="restore-start" class="primary-button" type="button" disabled>復元先を選択して実行</button>
+        <button id="restore-cancel" class="secondary-button danger" type="button" hidden>キャンセル</button>
+      </div>
+
+      <section id="restore-progress" class="progress-panel" hidden aria-live="polite">
+        <div class="progress-header">
+          <strong data-progress-part>準備中</strong>
+          <span data-progress-percent>0%</span>
+        </div>
+        <div class="progress-track" aria-hidden="true"><div data-progress-bar class="progress-bar"></div></div>
+        <div class="progress-meta">
+          <span data-progress-bytes>0 B</span>
+          <span data-progress-name>準備中</span>
+        </div>
+      </section>
+
+      <div id="restore-result" class="message success result-message" hidden aria-live="polite"></div>
+
+      <details class="details-box">
+        <summary>復元時の安全確認</summary>
+        <p>各パーツのサイズとSHA-256、さらに復元後のファイル全体のSHA-256を確認します。不一致がある場合は保存を確定せず、どのパーツに問題があるか表示します。</p>
+      </details>
+    </section>
+
+    <section class="notice security-notice">
+      <strong>分割は暗号化ではありません。</strong>
+      <span>すべてのパーツを持つ人は元ファイルを復元できます。機密ファイルは別途暗号化してください。</span>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="shell footer-inner">
+      <span>SplitSend v1.0.0</span>
+      <span>静的Webアプリ・外部通信なし</span>
+    </div>
+  </footer>
+
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>
